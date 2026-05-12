@@ -13,6 +13,7 @@ include(CTest)
 
 add_library(flux_core
     src/itch.cpp
+    src/itch_replay.cpp
     src/matching_engine.cpp
     src/order_book.cpp
 )
@@ -41,6 +42,10 @@ if(BUILD_TESTING)
     add_executable(flux_itch_tests tests/itch_tests.cpp)
     target_link_libraries(flux_itch_tests PRIVATE flux_core)
     add_test(NAME flux_itch_tests COMMAND flux_itch_tests)
+
+    add_executable(flux_itch_replay_tests tests/itch_replay_tests.cpp)
+    target_link_libraries(flux_itch_replay_tests PRIVATE flux_core)
+    add_test(NAME flux_itch_replay_tests COMMAND flux_itch_replay_tests)
 endif()
 
 if(MSVC)
@@ -50,6 +55,7 @@ if(MSVC)
     if(BUILD_TESTING)
         target_compile_options(flux_order_book_tests PRIVATE /W4 /permissive-)
         target_compile_options(flux_itch_tests PRIVATE /W4 /permissive-)
+        target_compile_options(flux_itch_replay_tests PRIVATE /W4 /permissive-)
     endif()
 else()
     target_compile_options(flux_core PRIVATE -Wall -Wextra -Wpedantic)
@@ -58,5 +64,6 @@ else()
     if(BUILD_TESTING)
         target_compile_options(flux_order_book_tests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(flux_itch_tests PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(flux_itch_replay_tests PRIVATE -Wall -Wextra -Wpedantic)
     endif()
 endif()
