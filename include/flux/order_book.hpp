@@ -23,14 +23,22 @@ struct AddOrderResult {
     std::vector<Trade> trades;
 };
 
+struct OrderStatus {
+    Side side{};
+    Price price{};
+    Quantity quantity{};
+};
+
 class OrderBook {
 public:
     AddOrderResult add_limit_order(Order order);
     AddOrderResult add_market_order(Order order);
     bool cancel_order(OrderId order_id);
+    bool reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce);
 
     [[nodiscard]] std::optional<Price> best_bid() const;
     [[nodiscard]] std::optional<Price> best_ask() const;
+    [[nodiscard]] std::optional<OrderStatus> order_status(OrderId order_id) const;
     [[nodiscard]] std::vector<OrderId> order_ids_at_price(Side side, Price price) const;
     [[nodiscard]] std::size_t order_count() const;
 

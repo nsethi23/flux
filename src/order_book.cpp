@@ -88,6 +88,30 @@ bool OrderBook::cancel_order(OrderId order_id) {
     return true;
 }
 
+bool OrderBook::reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce) {
+    if (quantity_to_reduce == 0) {
+        return false;
+    }
+
+    auto entry = orders_by_id_.find(order_id);
+    if (entry == orders_by_id_.end()) {
+        return false;
+    }
+
+    if (quantity_to_reduce >= entry->second.order.quantity) {
+        const Side side = entry->second.order.side;
+        const Price price = entry->second.order.price;
+        const auto fifo_position = entry->second.fifo_position;
+
+        remove_from_level(side, price, fifo_position);
+        orders_by_id_.erase(entry);
+        return true;
+    }
+
+    entry->second.order.quantity -= quantity_to_reduce;
+    return true;
+}
+
 void OrderBook::remove_from_level(Side side, Price price, std::list<OrderId>::iterator fifo_position) {
     if (side == Side::Buy) {
         auto level = bids_.find(price);
@@ -204,6 +228,19 @@ std::optional<Price> OrderBook::best_ask() const {
     }
 
     return asks_.begin()->first;
+}
+
+std::optional<OrderStatus> OrderBook::order_status(OrderId order_id) const {
+    const auto entry = orders_by_id_.find(order_id);
+    if (entry == orders_by_id_.end()) {
+        return std::nullopt;
+    }
+
+    return OrderStatus{
+        .side = entry->second.order.side,
+        .price = entry->second.order.price,
+        .quantity = entry->second.order.quantity,
+    };
 }
 
 std::vector<OrderId> OrderBook::order_ids_at_price(Side side, Price price) const {

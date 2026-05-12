@@ -278,6 +278,75 @@ void test_market_order_rejects_duplicate_resting_order_id() {
     expect(book.best_ask() == std::optional<flux::Price>{10'000}, "resting order remains after rejection");
 }
 
+void test_reduce_unknown_order_id_returns_false() {
+    flux::OrderBook book;
+
+    expect(!book.reduce_order_quantity(42, 10), "reduce unknown order id returns false");
+    expect(book.order_count() == 0, "reduce unknown order does not change book");
+}
+
+void test_reduce_zero_quantity_returns_false() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    expect(!book.reduce_order_quantity(1, 0), "zero quantity reduction is rejected");
+    expect(book.order_status(1)->quantity == 100, "zero quantity reduction does not change order");
+}
+
+void test_reduce_order_quantity_partially() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    expect(book.reduce_order_quantity(1, 40), "partial quantity reduction succeeds");
+
+    const auto status = book.order_status(1);
+
+    expect(status.has_value(), "partially reduced order remains on book");
+    expect(status->quantity == 60, "partial reduction lowers order quantity");
+    expect(book.best_bid() == std::optional<flux::Price>{10'000}, "partially reduced order keeps price level");
+    expect(book.order_count() == 1, "partial reduction does not remove order");
+}
+
+void test_reduce_order_quantity_to_zero_removes_order() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+
+    expect(book.reduce_order_quantity(1, 100), "full quantity reduction succeeds");
+    expect(!book.order_status(1).has_value(), "fully reduced order is removed");
+    expect(!book.best_ask().has_value(), "empty ask level is removed after full reduction");
+    expect(book.order_count() == 0, "full reduction removes order from id map");
+}
+
+void test_reduce_more_than_remaining_removes_order() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    expect(book.reduce_order_quantity(1, 150), "oversized quantity reduction succeeds");
+    expect(!book.order_status(1).has_value(), "oversized reduction removes order");
+    expect(!book.best_bid().has_value(), "empty bid level is removed after oversized reduction");
+    expect(book.order_count() == 0, "oversized reduction removes order from id map");
+}
+
+void test_reduce_order_quantity_preserves_fifo_position() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 10, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 11, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 12, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    const std::vector<flux::OrderId> expected{10, 11, 12};
+
+    expect(book.reduce_order_quantity(11, 40), "middle order quantity reduction succeeds");
+    expect(
+        book.order_ids_at_price(flux::Side::Buy, 10'000) == expected,
+        "quantity reduction preserves FIFO position"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -299,6 +368,12 @@ int main() {
     test_market_sell_consumes_bids_across_price_levels();
     test_market_order_discards_unfilled_quantity();
     test_market_order_rejects_duplicate_resting_order_id();
+    test_reduce_unknown_order_id_returns_false();
+    test_reduce_zero_quantity_returns_false();
+    test_reduce_order_quantity_partially();
+    test_reduce_order_quantity_to_zero_removes_order();
+    test_reduce_more_than_remaining_removes_order();
+    test_reduce_order_quantity_preserves_fifo_position();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";
