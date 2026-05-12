@@ -48,6 +48,51 @@ void OrderBook::rest_order(Order order) {
     }
 }
 
+bool OrderBook::cancel_order(OrderId order_id) {
+    const auto order = orders_by_id_.find(order_id);
+    if (order == orders_by_id_.end()) {
+        return false;
+    }
+
+    const Side side = order->second.side;
+    const Price price = order->second.price;
+
+    orders_by_id_.erase(order);
+    remove_from_level(side, price, order_id);
+
+    return true;
+}
+
+void OrderBook::remove_from_level(Side side, Price price, OrderId order_id) {
+    if (side == Side::Buy) {
+        auto level = bids_.find(price);
+        auto& fifo = level->second.fifo_order_ids;
+
+        const auto order = std::find(fifo.begin(), fifo.end(), order_id);
+        if (order != fifo.end()) {
+            fifo.erase(order);
+        }
+
+        if (fifo.empty()) {
+            bids_.erase(level);
+        }
+
+        return;
+    }
+
+    auto level = asks_.find(price);
+    auto& fifo = level->second.fifo_order_ids;
+
+    const auto order = std::find(fifo.begin(), fifo.end(), order_id);
+    if (order != fifo.end()) {
+        fifo.erase(order);
+    }
+
+    if (fifo.empty()) {
+        asks_.erase(level);
+    }
+}
+
 void OrderBook::match_buy_order(Order& incoming, std::vector<Trade>& trades) {
     while (incoming.quantity > 0 && !asks_.empty()) {
         auto best_ask = asks_.begin();

@@ -160,6 +160,50 @@ void test_sell_limit_order_matches_best_bid_first() {
     expect(book.best_bid() == std::optional<flux::Price>{10'000}, "lower bid remains after best bid fills");
 }
 
+void test_cancel_unknown_order_id_returns_false() {
+    flux::OrderBook book;
+
+    expect(!book.cancel_order(42), "cancel unknown order id returns false");
+    expect(book.order_count() == 0, "cancel unknown order does not change book");
+}
+
+void test_cancel_removes_order_from_fifo_level() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 10, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 11, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 12, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    const std::vector<flux::OrderId> expected{10, 12};
+
+    expect(book.cancel_order(11), "cancel existing order returns true");
+    expect(book.order_count() == 2, "cancel removes order from id map");
+    expect(
+        book.order_ids_at_price(flux::Side::Buy, 10'000) == expected,
+        "cancel removes order from FIFO level"
+    );
+}
+
+void test_cancel_removes_empty_best_bid_level() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'100, .quantity = 100});
+
+    expect(book.cancel_order(2), "cancel best bid order succeeds");
+    expect(book.best_bid() == std::optional<flux::Price>{10'000}, "next bid becomes best bid");
+}
+
+void test_cancel_removes_empty_best_ask_level() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'100, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+
+    expect(book.cancel_order(2), "cancel best ask order succeeds");
+    expect(book.best_ask() == std::optional<flux::Price>{10'100}, "next ask becomes best ask");
+}
+
 }  // namespace
 
 int main() {
@@ -173,6 +217,10 @@ int main() {
     test_buy_limit_order_partially_fills_resting_sell();
     test_buy_limit_order_rests_unfilled_remainder();
     test_sell_limit_order_matches_best_bid_first();
+    test_cancel_unknown_order_id_returns_false();
+    test_cancel_removes_order_from_fifo_level();
+    test_cancel_removes_empty_best_bid_level();
+    test_cancel_removes_empty_best_ask_level();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";
