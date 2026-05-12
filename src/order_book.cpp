@@ -16,7 +16,7 @@ AddOrderResult OrderBook::add_limit_order(Order order) {
 
     if (order.side == Side::Buy) {
         AddOrderResult result{.accepted = true};
-        match_buy_order(order, result.trades);
+        match_buy_order(order, result.trades, true);
         result.remaining_quantity = order.quantity;
 
         if (order.quantity > 0) {
@@ -27,13 +27,34 @@ AddOrderResult OrderBook::add_limit_order(Order order) {
     }
 
     AddOrderResult result{.accepted = true};
-    match_sell_order(order, result.trades);
+    match_sell_order(order, result.trades, true);
     result.remaining_quantity = order.quantity;
 
     if (order.quantity > 0) {
         rest_order(order);
     }
 
+    return result;
+}
+
+AddOrderResult OrderBook::add_market_order(Order order) {
+    if (order.quantity == 0) {
+        return {.accepted = false};
+    }
+
+    if (orders_by_id_.contains(order.id)) {
+        return {.accepted = false};
+    }
+
+    AddOrderResult result{.accepted = true};
+
+    if (order.side == Side::Buy) {
+        match_buy_order(order, result.trades, false);
+    } else {
+        match_sell_order(order, result.trades, false);
+    }
+
+    result.remaining_quantity = order.quantity;
     return result;
 }
 
@@ -93,10 +114,14 @@ void OrderBook::remove_from_level(Side side, Price price, OrderId order_id) {
     }
 }
 
-void OrderBook::match_buy_order(Order& incoming, std::vector<Trade>& trades) {
+void OrderBook::match_buy_order(
+    Order& incoming,
+    std::vector<Trade>& trades,
+    bool enforce_price_limit
+) {
     while (incoming.quantity > 0 && !asks_.empty()) {
         auto best_ask = asks_.begin();
-        if (best_ask->first > incoming.price) {
+        if (enforce_price_limit && best_ask->first > incoming.price) {
             break;
         }
 
@@ -128,10 +153,14 @@ void OrderBook::match_buy_order(Order& incoming, std::vector<Trade>& trades) {
     }
 }
 
-void OrderBook::match_sell_order(Order& incoming, std::vector<Trade>& trades) {
+void OrderBook::match_sell_order(
+    Order& incoming,
+    std::vector<Trade>& trades,
+    bool enforce_price_limit
+) {
     while (incoming.quantity > 0 && !bids_.empty()) {
         auto best_bid = bids_.begin();
-        if (best_bid->first < incoming.price) {
+        if (enforce_price_limit && best_bid->first < incoming.price) {
             break;
         }
 

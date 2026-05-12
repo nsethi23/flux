@@ -26,6 +26,7 @@ struct AddOrderResult {
 class OrderBook {
 public:
     AddOrderResult add_limit_order(Order order);
+    AddOrderResult add_market_order(Order order);
     bool cancel_order(OrderId order_id);
 
     [[nodiscard]] std::optional<Price> best_bid() const;
@@ -39,8 +40,8 @@ private:
     };
 
     void rest_order(Order order);
-    void match_buy_order(Order& incoming, std::vector<Trade>& trades);
-    void match_sell_order(Order& incoming, std::vector<Trade>& trades);
+    void match_buy_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
+    void match_sell_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
     void remove_from_level(Side side, Price price, OrderId order_id);
 
     std::map<Price, PriceLevel, std::greater<Price>> bids_;

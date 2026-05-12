@@ -204,6 +204,80 @@ void test_cancel_removes_empty_best_ask_level() {
     expect(book.best_ask() == std::optional<flux::Price>{10'100}, "next ask becomes best ask");
 }
 
+void test_market_buy_consumes_asks_across_price_levels() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+    book.add_limit_order({.id = 2, .side = flux::Side::Sell, .price = 10'100, .quantity = 60});
+    book.add_limit_order({.id = 3, .side = flux::Side::Sell, .price = 10'200, .quantity = 100});
+
+    const auto result = book.add_market_order(
+        {.id = 4, .side = flux::Side::Buy, .price = 0, .quantity = 150}
+    );
+
+    expect(result.accepted, "market buy is accepted");
+    expect(result.remaining_quantity == 0, "market buy fully fills when enough asks exist");
+    expect(result.trades.size() == 3, "market buy can trade across ask levels");
+    expect(result.trades[0].resting_order_id == 1, "market buy matches lowest ask first");
+    expect(result.trades[1].resting_order_id == 2, "market buy matches next ask second");
+    expect(result.trades[2].resting_order_id == 3, "market buy partially matches third ask");
+    expect(result.trades[2].quantity == 50, "market buy only takes needed quantity from third ask");
+    expect(book.best_ask() == std::optional<flux::Price>{10'200}, "partially filled ask remains best ask");
+    expect(book.order_count() == 1, "only partial resting ask remains");
+}
+
+void test_market_sell_consumes_bids_across_price_levels() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'200, .quantity = 40});
+    book.add_limit_order({.id = 3, .side = flux::Side::Buy, .price = 10'100, .quantity = 60});
+
+    const auto result = book.add_market_order(
+        {.id = 4, .side = flux::Side::Sell, .price = 0, .quantity = 75}
+    );
+
+    expect(result.accepted, "market sell is accepted");
+    expect(result.remaining_quantity == 0, "market sell fully fills when enough bids exist");
+    expect(result.trades.size() == 2, "market sell can trade across bid levels");
+    expect(result.trades[0].resting_order_id == 2, "market sell matches highest bid first");
+    expect(result.trades[1].resting_order_id == 3, "market sell matches next highest bid second");
+    expect(result.trades[1].quantity == 35, "market sell partially fills second bid level");
+    expect(book.best_bid() == std::optional<flux::Price>{10'100}, "partial bid remains best bid");
+    expect(book.order_count() == 2, "partial bid and lower bid remain");
+}
+
+void test_market_order_discards_unfilled_quantity() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+
+    const auto result = book.add_market_order(
+        {.id = 2, .side = flux::Side::Buy, .price = 0, .quantity = 100}
+    );
+
+    expect(result.accepted, "oversized market order is accepted");
+    expect(result.remaining_quantity == 60, "unfilled market quantity is reported");
+    expect(result.trades.size() == 1, "market order trades available liquidity");
+    expect(book.order_count() == 0, "unfilled market quantity does not rest");
+    expect(!book.best_bid().has_value(), "unfilled market buy does not become bid");
+    expect(!book.best_ask().has_value(), "consumed ask is removed");
+}
+
+void test_market_order_rejects_duplicate_resting_order_id() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+
+    const auto result = book.add_market_order(
+        {.id = 1, .side = flux::Side::Buy, .price = 0, .quantity = 100}
+    );
+
+    expect(!result.accepted, "market order duplicate id is rejected");
+    expect(book.order_count() == 1, "duplicate market order does not change book");
+    expect(book.best_ask() == std::optional<flux::Price>{10'000}, "resting order remains after rejection");
+}
+
 }  // namespace
 
 int main() {
@@ -221,6 +295,10 @@ int main() {
     test_cancel_removes_order_from_fifo_level();
     test_cancel_removes_empty_best_bid_level();
     test_cancel_removes_empty_best_ask_level();
+    test_market_buy_consumes_asks_across_price_levels();
+    test_market_sell_consumes_bids_across_price_levels();
+    test_market_order_discards_unfilled_quantity();
+    test_market_order_rejects_duplicate_resting_order_id();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";
