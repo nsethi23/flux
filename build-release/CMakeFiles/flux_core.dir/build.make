@@ -72,10 +72,38 @@ include CMakeFiles/flux_core.dir/flags.make
 CMakeFiles/flux_core.dir/codegen:
 .PHONY : CMakeFiles/flux_core.dir/codegen
 
+CMakeFiles/flux_core.dir/src/itch.cpp.o: CMakeFiles/flux_core.dir/flags.make
+CMakeFiles/flux_core.dir/src/itch.cpp.o: /Users/nsethi/Downloads/projects/flux/src/itch.cpp
+CMakeFiles/flux_core.dir/src/itch.cpp.o: CMakeFiles/flux_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/flux_core.dir/src/itch.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flux_core.dir/src/itch.cpp.o -MF CMakeFiles/flux_core.dir/src/itch.cpp.o.d -o CMakeFiles/flux_core.dir/src/itch.cpp.o -c /Users/nsethi/Downloads/projects/flux/src/itch.cpp
+
+CMakeFiles/flux_core.dir/src/itch.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flux_core.dir/src/itch.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/nsethi/Downloads/projects/flux/src/itch.cpp > CMakeFiles/flux_core.dir/src/itch.cpp.i
+
+CMakeFiles/flux_core.dir/src/itch.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flux_core.dir/src/itch.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/nsethi/Downloads/projects/flux/src/itch.cpp -o CMakeFiles/flux_core.dir/src/itch.cpp.s
+
+CMakeFiles/flux_core.dir/src/matching_engine.cpp.o: CMakeFiles/flux_core.dir/flags.make
+CMakeFiles/flux_core.dir/src/matching_engine.cpp.o: /Users/nsethi/Downloads/projects/flux/src/matching_engine.cpp
+CMakeFiles/flux_core.dir/src/matching_engine.cpp.o: CMakeFiles/flux_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/flux_core.dir/src/matching_engine.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flux_core.dir/src/matching_engine.cpp.o -MF CMakeFiles/flux_core.dir/src/matching_engine.cpp.o.d -o CMakeFiles/flux_core.dir/src/matching_engine.cpp.o -c /Users/nsethi/Downloads/projects/flux/src/matching_engine.cpp
+
+CMakeFiles/flux_core.dir/src/matching_engine.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flux_core.dir/src/matching_engine.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/nsethi/Downloads/projects/flux/src/matching_engine.cpp > CMakeFiles/flux_core.dir/src/matching_engine.cpp.i
+
+CMakeFiles/flux_core.dir/src/matching_engine.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flux_core.dir/src/matching_engine.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/nsethi/Downloads/projects/flux/src/matching_engine.cpp -o CMakeFiles/flux_core.dir/src/matching_engine.cpp.s
+
 CMakeFiles/flux_core.dir/src/order_book.cpp.o: CMakeFiles/flux_core.dir/flags.make
 CMakeFiles/flux_core.dir/src/order_book.cpp.o: /Users/nsethi/Downloads/projects/flux/src/order_book.cpp
 CMakeFiles/flux_core.dir/src/order_book.cpp.o: CMakeFiles/flux_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/flux_core.dir/src/order_book.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/flux_core.dir/src/order_book.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flux_core.dir/src/order_book.cpp.o -MF CMakeFiles/flux_core.dir/src/order_book.cpp.o.d -o CMakeFiles/flux_core.dir/src/order_book.cpp.o -c /Users/nsethi/Downloads/projects/flux/src/order_book.cpp
 
 CMakeFiles/flux_core.dir/src/order_book.cpp.i: cmake_force
@@ -88,15 +116,19 @@ CMakeFiles/flux_core.dir/src/order_book.cpp.s: cmake_force
 
 # Object files for target flux_core
 flux_core_OBJECTS = \
+"CMakeFiles/flux_core.dir/src/itch.cpp.o" \
+"CMakeFiles/flux_core.dir/src/matching_engine.cpp.o" \
 "CMakeFiles/flux_core.dir/src/order_book.cpp.o"
 
 # External object files for target flux_core
 flux_core_EXTERNAL_OBJECTS =
 
+libflux_core.a: CMakeFiles/flux_core.dir/src/itch.cpp.o
+libflux_core.a: CMakeFiles/flux_core.dir/src/matching_engine.cpp.o
 libflux_core.a: CMakeFiles/flux_core.dir/src/order_book.cpp.o
 libflux_core.a: CMakeFiles/flux_core.dir/build.make
 libflux_core.a: CMakeFiles/flux_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX static library libflux_core.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libflux_core.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/flux_core.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/flux_core.dir/link.txt --verbose=$(VERBOSE)
 

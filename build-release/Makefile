@@ -530,17 +530,30 @@ flux_bench/fast:
 .PHONY : flux_bench/fast
 
 #=============================================================================
-# Target rules for targets named flux_tests
+# Target rules for targets named flux_order_book_tests
 
 # Build rule for target.
-flux_tests: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 flux_tests
-.PHONY : flux_tests
+flux_order_book_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 flux_order_book_tests
+.PHONY : flux_order_book_tests
 
 # fast build rule for target.
-flux_tests/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/build
-.PHONY : flux_tests/fast
+flux_order_book_tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/build
+.PHONY : flux_order_book_tests/fast
+
+#=============================================================================
+# Target rules for targets named flux_itch_tests
+
+# Build rule for target.
+flux_itch_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 flux_itch_tests
+.PHONY : flux_itch_tests
+
+# fast build rule for target.
+flux_itch_tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/build
+.PHONY : flux_itch_tests/fast
 
 benchmarks/order_book_bench.o: benchmarks/order_book_bench.cpp.o
 .PHONY : benchmarks/order_book_bench.o
@@ -566,6 +579,30 @@ benchmarks/order_book_bench.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_bench.dir/build.make CMakeFiles/flux_bench.dir/benchmarks/order_book_bench.cpp.s
 .PHONY : benchmarks/order_book_bench.cpp.s
 
+src/itch.o: src/itch.cpp.o
+.PHONY : src/itch.o
+
+# target to build an object file
+src/itch.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/itch.cpp.o
+.PHONY : src/itch.cpp.o
+
+src/itch.i: src/itch.cpp.i
+.PHONY : src/itch.i
+
+# target to preprocess a source file
+src/itch.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/itch.cpp.i
+.PHONY : src/itch.cpp.i
+
+src/itch.s: src/itch.cpp.s
+.PHONY : src/itch.s
+
+# target to generate assembly for a file
+src/itch.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/itch.cpp.s
+.PHONY : src/itch.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -589,6 +626,30 @@ src/main.s: src/main.cpp.s
 src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux.dir/build.make CMakeFiles/flux.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
+
+src/matching_engine.o: src/matching_engine.cpp.o
+.PHONY : src/matching_engine.o
+
+# target to build an object file
+src/matching_engine.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/matching_engine.cpp.o
+.PHONY : src/matching_engine.cpp.o
+
+src/matching_engine.i: src/matching_engine.cpp.i
+.PHONY : src/matching_engine.i
+
+# target to preprocess a source file
+src/matching_engine.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/matching_engine.cpp.i
+.PHONY : src/matching_engine.cpp.i
+
+src/matching_engine.s: src/matching_engine.cpp.s
+.PHONY : src/matching_engine.s
+
+# target to generate assembly for a file
+src/matching_engine.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/matching_engine.cpp.s
+.PHONY : src/matching_engine.cpp.s
 
 src/order_book.o: src/order_book.cpp.o
 .PHONY : src/order_book.o
@@ -614,12 +675,36 @@ src/order_book.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/src/order_book.cpp.s
 .PHONY : src/order_book.cpp.s
 
+tests/itch_tests.o: tests/itch_tests.cpp.o
+.PHONY : tests/itch_tests.o
+
+# target to build an object file
+tests/itch_tests.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/tests/itch_tests.cpp.o
+.PHONY : tests/itch_tests.cpp.o
+
+tests/itch_tests.i: tests/itch_tests.cpp.i
+.PHONY : tests/itch_tests.i
+
+# target to preprocess a source file
+tests/itch_tests.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/tests/itch_tests.cpp.i
+.PHONY : tests/itch_tests.cpp.i
+
+tests/itch_tests.s: tests/itch_tests.cpp.s
+.PHONY : tests/itch_tests.s
+
+# target to generate assembly for a file
+tests/itch_tests.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/tests/itch_tests.cpp.s
+.PHONY : tests/itch_tests.cpp.s
+
 tests/order_book_tests.o: tests/order_book_tests.cpp.o
 .PHONY : tests/order_book_tests.o
 
 # target to build an object file
 tests/order_book_tests.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/tests/order_book_tests.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/tests/order_book_tests.cpp.o
 .PHONY : tests/order_book_tests.cpp.o
 
 tests/order_book_tests.i: tests/order_book_tests.cpp.i
@@ -627,7 +712,7 @@ tests/order_book_tests.i: tests/order_book_tests.cpp.i
 
 # target to preprocess a source file
 tests/order_book_tests.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/tests/order_book_tests.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/tests/order_book_tests.cpp.i
 .PHONY : tests/order_book_tests.cpp.i
 
 tests/order_book_tests.s: tests/order_book_tests.cpp.s
@@ -635,7 +720,7 @@ tests/order_book_tests.s: tests/order_book_tests.cpp.s
 
 # target to generate assembly for a file
 tests/order_book_tests.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/tests/order_book_tests.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/tests/order_book_tests.cpp.s
 .PHONY : tests/order_book_tests.cpp.s
 
 # Help Target
@@ -678,16 +763,26 @@ help:
 	@echo "... flux"
 	@echo "... flux_bench"
 	@echo "... flux_core"
-	@echo "... flux_tests"
+	@echo "... flux_itch_tests"
+	@echo "... flux_order_book_tests"
 	@echo "... benchmarks/order_book_bench.o"
 	@echo "... benchmarks/order_book_bench.i"
 	@echo "... benchmarks/order_book_bench.s"
+	@echo "... src/itch.o"
+	@echo "... src/itch.i"
+	@echo "... src/itch.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/matching_engine.o"
+	@echo "... src/matching_engine.i"
+	@echo "... src/matching_engine.s"
 	@echo "... src/order_book.o"
 	@echo "... src/order_book.i"
 	@echo "... src/order_book.s"
+	@echo "... tests/itch_tests.o"
+	@echo "... tests/itch_tests.i"
+	@echo "... tests/itch_tests.s"
 	@echo "... tests/order_book_tests.o"
 	@echo "... tests/order_book_tests.i"
 	@echo "... tests/order_book_tests.s"

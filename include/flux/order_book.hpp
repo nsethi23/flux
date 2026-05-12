@@ -17,8 +17,15 @@ struct Trade {
     Quantity quantity{};
 };
 
+enum class AddOrderRejectReason {
+    None,
+    ZeroQuantity,
+    DuplicateOrderId,
+};
+
 struct AddOrderResult {
     bool accepted{};
+    AddOrderRejectReason reject_reason{AddOrderRejectReason::None};
     Quantity remaining_quantity{};
     std::vector<Trade> trades;
 };
@@ -34,6 +41,7 @@ public:
     AddOrderResult add_limit_order(Order order);
     AddOrderResult add_market_order(Order order);
     bool cancel_order(OrderId order_id);
+    bool replace_order(OrderId existing_order_id, Order replacement);
     bool reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce);
 
     [[nodiscard]] std::optional<Price> best_bid() const;

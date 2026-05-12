@@ -8,11 +8,11 @@ namespace flux {
 
 AddOrderResult OrderBook::add_limit_order(Order order) {
     if (order.quantity == 0) {
-        return {.accepted = false};
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::ZeroQuantity};
     }
 
     if (orders_by_id_.contains(order.id)) {
-        return {.accepted = false};
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
     }
 
     if (order.side == Side::Buy) {
@@ -40,11 +40,11 @@ AddOrderResult OrderBook::add_limit_order(Order order) {
 
 AddOrderResult OrderBook::add_market_order(Order order) {
     if (order.quantity == 0) {
-        return {.accepted = false};
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::ZeroQuantity};
     }
 
     if (orders_by_id_.contains(order.id)) {
-        return {.accepted = false};
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
     }
 
     AddOrderResult result{.accepted = true};
@@ -86,6 +86,22 @@ bool OrderBook::cancel_order(OrderId order_id) {
     orders_by_id_.erase(entry);
 
     return true;
+}
+
+bool OrderBook::replace_order(OrderId existing_order_id, Order replacement) {
+    if (replacement.quantity == 0) {
+        return false;
+    }
+
+    if (replacement.id != existing_order_id && orders_by_id_.contains(replacement.id)) {
+        return false;
+    }
+
+    if (!cancel_order(existing_order_id)) {
+        return false;
+    }
+
+    return add_limit_order(replacement).accepted;
 }
 
 bool OrderBook::reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce) {

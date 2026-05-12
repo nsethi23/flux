@@ -29,7 +29,8 @@
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux_core.dir
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux.dir
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux_bench.dir
-/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux_tests.dir
+/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux_order_book_tests.dir
+/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/flux_itch_tests.dir
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/test.dir
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/edit_cache.dir
 /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles/rebuild_cache.dir

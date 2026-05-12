@@ -1,4 +1,5 @@
 #include "flux/order_book.hpp"
+#include "flux/matching_engine.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -33,6 +34,10 @@ void test_rejects_zero_quantity_order() {
     );
 
     expect(!result.accepted, "zero quantity order is rejected");
+    expect(
+        result.reject_reason == flux::AddOrderRejectReason::ZeroQuantity,
+        "zero quantity reject reason is reported"
+    );
     expect(book.order_count() == 0, "rejected order is not stored");
 }
 
@@ -48,6 +53,10 @@ void test_rejects_duplicate_order_id() {
 
     expect(first.accepted, "first order with id is accepted");
     expect(!second.accepted, "duplicate order id is rejected");
+    expect(
+        second.reject_reason == flux::AddOrderRejectReason::DuplicateOrderId,
+        "duplicate order id reject reason is reported"
+    );
     expect(book.order_count() == 1, "duplicate order is not stored");
 }
 
@@ -278,6 +287,65 @@ void test_market_order_rejects_duplicate_resting_order_id() {
     expect(book.best_ask() == std::optional<flux::Price>{10'000}, "resting order remains after rejection");
 }
 
+void test_market_order_on_empty_book_reports_unfilled_quantity() {
+    flux::OrderBook book;
+
+    const auto result = book.add_market_order(
+        {.id = 1, .side = flux::Side::Buy, .price = 0, .quantity = 100}
+    );
+
+    expect(result.accepted, "market order on empty book is accepted");
+    expect(result.remaining_quantity == 100, "empty book market order reports full remaining quantity");
+    expect(result.trades.empty(), "empty book market order creates no trades");
+    expect(book.order_count() == 0, "empty book market order does not rest");
+}
+
+void test_duplicate_id_can_be_reused_after_full_fill() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    const auto result = book.add_limit_order(
+        {.id = 1, .side = flux::Side::Buy, .price = 9'900, .quantity = 100}
+    );
+
+    expect(result.accepted, "order id can be reused after original order fully fills");
+    expect(book.order_count() == 1, "reused id rests as a new order");
+    expect(book.best_bid() == std::optional<flux::Price>{9'900}, "reused id order has new price");
+}
+
+void test_duplicate_id_can_be_reused_after_cancel() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.cancel_order(1);
+
+    const auto result = book.add_limit_order(
+        {.id = 1, .side = flux::Side::Sell, .price = 10'100, .quantity = 100}
+    );
+
+    expect(result.accepted, "order id can be reused after cancel");
+    expect(book.best_ask() == std::optional<flux::Price>{10'100}, "reused id order rests on ask side");
+}
+
+void test_partial_fill_preserves_fifo_for_remaining_order() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+
+    book.add_limit_order({.id = 3, .side = flux::Side::Buy, .price = 10'000, .quantity = 40});
+
+    const std::vector<flux::OrderId> expected{1, 2};
+
+    expect(
+        book.order_ids_at_price(flux::Side::Sell, 10'000) == expected,
+        "partially filled resting order keeps FIFO position"
+    );
+    expect(book.order_status(1)->quantity == 60, "partially filled resting order keeps remaining quantity");
+}
+
 void test_reduce_unknown_order_id_returns_false() {
     flux::OrderBook book;
 
@@ -347,6 +415,62 @@ void test_reduce_order_quantity_preserves_fifo_position() {
     );
 }
 
+void test_replace_order_resets_priority() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    const std::vector<flux::OrderId> expected{2, 3};
+
+    expect(
+        book.replace_order(1, {.id = 3, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}),
+        "replace existing order succeeds"
+    );
+    expect(book.order_ids_at_price(flux::Side::Buy, 10'000) == expected, "replacement loses old FIFO priority");
+    expect(!book.order_status(1).has_value(), "replaced order id is removed");
+    expect(book.order_status(3)->quantity == 50, "replacement order is inserted");
+}
+
+void test_replace_unknown_order_returns_false() {
+    flux::OrderBook book;
+
+    expect(
+        !book.replace_order(42, {.id = 43, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}),
+        "replace unknown order returns false"
+    );
+    expect(book.order_count() == 0, "replace unknown order does not change book");
+}
+
+void test_replace_with_duplicate_replacement_id_returns_false() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'100, .quantity = 100});
+
+    expect(
+        !book.replace_order(1, {.id = 2, .side = flux::Side::Sell, .price = 10'200, .quantity = 50}),
+        "replace with duplicate replacement id returns false"
+    );
+    expect(book.order_status(1).has_value(), "failed replace keeps original order");
+    expect(book.order_status(2).has_value(), "failed replace keeps conflicting order");
+}
+
+void test_matching_engine_isolates_symbols() {
+    flux::MatchingEngine engine;
+
+    auto& aapl = engine.book_for("AAPL");
+    auto& msft = engine.book_for("MSFT");
+
+    aapl.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    msft.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 20'000, .quantity = 100});
+
+    expect(engine.symbol_count() == 2, "matching engine tracks two symbols");
+    expect(engine.find_book("AAPL")->best_bid() == std::optional<flux::Price>{10'000}, "AAPL book has AAPL bid");
+    expect(engine.find_book("MSFT")->best_ask() == std::optional<flux::Price>{20'000}, "MSFT book has MSFT ask");
+    expect(engine.find_book("GOOG") == nullptr, "unknown symbol returns no book");
+}
+
 }  // namespace
 
 int main() {
@@ -368,12 +492,20 @@ int main() {
     test_market_sell_consumes_bids_across_price_levels();
     test_market_order_discards_unfilled_quantity();
     test_market_order_rejects_duplicate_resting_order_id();
+    test_market_order_on_empty_book_reports_unfilled_quantity();
+    test_duplicate_id_can_be_reused_after_full_fill();
+    test_duplicate_id_can_be_reused_after_cancel();
+    test_partial_fill_preserves_fifo_for_remaining_order();
     test_reduce_unknown_order_id_returns_false();
     test_reduce_zero_quantity_returns_false();
     test_reduce_order_quantity_partially();
     test_reduce_order_quantity_to_zero_removes_order();
     test_reduce_more_than_remaining_removes_order();
     test_reduce_order_quantity_preserves_fifo_position();
+    test_replace_order_resets_priority();
+    test_replace_unknown_order_returns_false();
+    test_replace_with_duplicate_replacement_id_returns_false();
+    test_matching_engine_isolates_symbols();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";

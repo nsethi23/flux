@@ -66,14 +66,16 @@ CMAKE_BINARY_DIR = /Users/nsethi/Downloads/projects/flux/build-release
 all: CMakeFiles/flux_core.dir/all
 all: CMakeFiles/flux.dir/all
 all: CMakeFiles/flux_bench.dir/all
-all: CMakeFiles/flux_tests.dir/all
+all: CMakeFiles/flux_order_book_tests.dir/all
+all: CMakeFiles/flux_itch_tests.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/flux_core.dir/codegen
 codegen: CMakeFiles/flux.dir/codegen
 codegen: CMakeFiles/flux_bench.dir/codegen
-codegen: CMakeFiles/flux_tests.dir/codegen
+codegen: CMakeFiles/flux_order_book_tests.dir/codegen
+codegen: CMakeFiles/flux_itch_tests.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -112,7 +114,8 @@ clean: CMakeFiles/ContinuousSubmit.dir/clean
 clean: CMakeFiles/flux_core.dir/clean
 clean: CMakeFiles/flux.dir/clean
 clean: CMakeFiles/flux_bench.dir/clean
-clean: CMakeFiles/flux_tests.dir/clean
+clean: CMakeFiles/flux_order_book_tests.dir/clean
+clean: CMakeFiles/flux_itch_tests.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -1018,12 +1021,12 @@ CMakeFiles/ContinuousSubmit.dir/clean:
 CMakeFiles/flux_core.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=5,6 "Built target flux_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=5,6,7,8 "Built target flux_core"
 .PHONY : CMakeFiles/flux_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/flux_core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux_core.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/flux_core.dir/rule
@@ -1035,7 +1038,7 @@ flux_core: CMakeFiles/flux_core.dir/rule
 # codegen rule for target.
 CMakeFiles/flux_core.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_core.dir/build.make CMakeFiles/flux_core.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=5,6 "Finished codegen for target flux_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=5,6,7,8 "Finished codegen for target flux_core"
 .PHONY : CMakeFiles/flux_core.dir/codegen
 
 # clean rule for target.
@@ -1055,7 +1058,7 @@ CMakeFiles/flux.dir/all: CMakeFiles/flux_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/flux.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/flux.dir/rule
@@ -1087,7 +1090,7 @@ CMakeFiles/flux_bench.dir/all: CMakeFiles/flux_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/flux_bench.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux_bench.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 0
 .PHONY : CMakeFiles/flux_bench.dir/rule
@@ -1108,36 +1111,68 @@ CMakeFiles/flux_bench.dir/clean:
 .PHONY : CMakeFiles/flux_bench.dir/clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/flux_tests.dir
+# Target rules for target CMakeFiles/flux_order_book_tests.dir
 
 # All Build rule for target.
-CMakeFiles/flux_tests.dir/all: CMakeFiles/flux_core.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=7,8 "Built target flux_tests"
-.PHONY : CMakeFiles/flux_tests.dir/all
+CMakeFiles/flux_order_book_tests.dir/all: CMakeFiles/flux_core.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=11,12 "Built target flux_order_book_tests"
+.PHONY : CMakeFiles/flux_order_book_tests.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/flux_tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 4
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux_tests.dir/all
+CMakeFiles/flux_order_book_tests.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 6
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux_order_book_tests.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 0
-.PHONY : CMakeFiles/flux_tests.dir/rule
+.PHONY : CMakeFiles/flux_order_book_tests.dir/rule
 
 # Convenience name for target.
-flux_tests: CMakeFiles/flux_tests.dir/rule
-.PHONY : flux_tests
+flux_order_book_tests: CMakeFiles/flux_order_book_tests.dir/rule
+.PHONY : flux_order_book_tests
 
 # codegen rule for target.
-CMakeFiles/flux_tests.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=7,8 "Finished codegen for target flux_tests"
-.PHONY : CMakeFiles/flux_tests.dir/codegen
+CMakeFiles/flux_order_book_tests.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=11,12 "Finished codegen for target flux_order_book_tests"
+.PHONY : CMakeFiles/flux_order_book_tests.dir/codegen
 
 # clean rule for target.
-CMakeFiles/flux_tests.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_tests.dir/build.make CMakeFiles/flux_tests.dir/clean
-.PHONY : CMakeFiles/flux_tests.dir/clean
+CMakeFiles/flux_order_book_tests.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_order_book_tests.dir/build.make CMakeFiles/flux_order_book_tests.dir/clean
+.PHONY : CMakeFiles/flux_order_book_tests.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/flux_itch_tests.dir
+
+# All Build rule for target.
+CMakeFiles/flux_itch_tests.dir/all: CMakeFiles/flux_core.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=9,10 "Built target flux_itch_tests"
+.PHONY : CMakeFiles/flux_itch_tests.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/flux_itch_tests.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 6
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/flux_itch_tests.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles 0
+.PHONY : CMakeFiles/flux_itch_tests.dir/rule
+
+# Convenience name for target.
+flux_itch_tests: CMakeFiles/flux_itch_tests.dir/rule
+.PHONY : flux_itch_tests
+
+# codegen rule for target.
+CMakeFiles/flux_itch_tests.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/nsethi/Downloads/projects/flux/build-release/CMakeFiles --progress-num=9,10 "Finished codegen for target flux_itch_tests"
+.PHONY : CMakeFiles/flux_itch_tests.dir/codegen
+
+# clean rule for target.
+CMakeFiles/flux_itch_tests.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flux_itch_tests.dir/build.make CMakeFiles/flux_itch_tests.dir/clean
+.PHONY : CMakeFiles/flux_itch_tests.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

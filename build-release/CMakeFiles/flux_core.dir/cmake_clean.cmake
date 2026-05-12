@@ -1,4 +1,8 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/flux_core.dir/src/itch.cpp.o"
+  "CMakeFiles/flux_core.dir/src/itch.cpp.o.d"
+  "CMakeFiles/flux_core.dir/src/matching_engine.cpp.o"
+  "CMakeFiles/flux_core.dir/src/matching_engine.cpp.o.d"
   "CMakeFiles/flux_core.dir/src/order_book.cpp.o"
   "CMakeFiles/flux_core.dir/src/order_book.cpp.o.d"
   "libflux_core.a"

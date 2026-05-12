@@ -31,12 +31,20 @@ cmake --build build-release
 - `CMakeLists.txt`: top-level build configuration.
 - `include/flux/`: public project headers.
 - `src/`: executable and implementation files.
+- `tests/`: correctness tests.
+- `benchmarks/`: benchmark executables.
+- `docs/`: architecture and performance notes.
 
 The build now creates:
 
 - `flux_core`: reusable library for the matching-engine code.
 - `flux`: small executable that links against `flux_core`.
 - `flux_bench`: simple benchmark executable for core order-book operations.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Performance Notes](docs/PERFORMANCE.md)
 
 ## Design Direction
 
