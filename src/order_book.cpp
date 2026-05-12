@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <iterator>
 
 namespace flux {
 
@@ -59,40 +60,40 @@ AddOrderResult OrderBook::add_market_order(Order order) {
 }
 
 void OrderBook::rest_order(Order order) {
-    const auto [it, inserted] = orders_by_id_.emplace(order.id, order);
-    (void)inserted;
-
     if (order.side == Side::Buy) {
-        bids_[order.price].fifo_order_ids.push_back(it->first);
-    } else {
-        asks_[order.price].fifo_order_ids.push_back(it->first);
+        auto& fifo = bids_[order.price].fifo_order_ids;
+        fifo.push_back(order.id);
+        orders_by_id_.emplace(order.id, OrderEntry{.order = order, .fifo_position = std::prev(fifo.end())});
+        return;
     }
+
+    auto& fifo = asks_[order.price].fifo_order_ids;
+    fifo.push_back(order.id);
+    orders_by_id_.emplace(order.id, OrderEntry{.order = order, .fifo_position = std::prev(fifo.end())});
 }
 
 bool OrderBook::cancel_order(OrderId order_id) {
-    const auto order = orders_by_id_.find(order_id);
-    if (order == orders_by_id_.end()) {
+    const auto entry = orders_by_id_.find(order_id);
+    if (entry == orders_by_id_.end()) {
         return false;
     }
 
-    const Side side = order->second.side;
-    const Price price = order->second.price;
+    const Side side = entry->second.order.side;
+    const Price price = entry->second.order.price;
+    const auto fifo_position = entry->second.fifo_position;
 
-    orders_by_id_.erase(order);
-    remove_from_level(side, price, order_id);
+    remove_from_level(side, price, fifo_position);
+    orders_by_id_.erase(entry);
 
     return true;
 }
 
-void OrderBook::remove_from_level(Side side, Price price, OrderId order_id) {
+void OrderBook::remove_from_level(Side side, Price price, std::list<OrderId>::iterator fifo_position) {
     if (side == Side::Buy) {
         auto level = bids_.find(price);
         auto& fifo = level->second.fifo_order_ids;
 
-        const auto order = std::find(fifo.begin(), fifo.end(), order_id);
-        if (order != fifo.end()) {
-            fifo.erase(order);
-        }
+        fifo.erase(fifo_position);
 
         if (fifo.empty()) {
             bids_.erase(level);
@@ -104,10 +105,7 @@ void OrderBook::remove_from_level(Side side, Price price, OrderId order_id) {
     auto level = asks_.find(price);
     auto& fifo = level->second.fifo_order_ids;
 
-    const auto order = std::find(fifo.begin(), fifo.end(), order_id);
-    if (order != fifo.end()) {
-        fifo.erase(order);
-    }
+    fifo.erase(fifo_position);
 
     if (fifo.empty()) {
         asks_.erase(level);
@@ -129,20 +127,20 @@ void OrderBook::match_buy_order(
         const OrderId resting_id = fifo.front();
         auto resting = orders_by_id_.find(resting_id);
 
-        const Quantity trade_quantity = std::min(incoming.quantity, resting->second.quantity);
+        const Quantity trade_quantity = std::min(incoming.quantity, resting->second.order.quantity);
         trades.push_back(
             {
                 .resting_order_id = resting_id,
                 .incoming_order_id = incoming.id,
-                .price = resting->second.price,
+                .price = resting->second.order.price,
                 .quantity = trade_quantity,
             }
         );
 
         incoming.quantity -= trade_quantity;
-        resting->second.quantity -= trade_quantity;
+        resting->second.order.quantity -= trade_quantity;
 
-        if (resting->second.quantity == 0) {
+        if (resting->second.order.quantity == 0) {
             orders_by_id_.erase(resting);
             fifo.pop_front();
 
@@ -168,20 +166,20 @@ void OrderBook::match_sell_order(
         const OrderId resting_id = fifo.front();
         auto resting = orders_by_id_.find(resting_id);
 
-        const Quantity trade_quantity = std::min(incoming.quantity, resting->second.quantity);
+        const Quantity trade_quantity = std::min(incoming.quantity, resting->second.order.quantity);
         trades.push_back(
             {
                 .resting_order_id = resting_id,
                 .incoming_order_id = incoming.id,
-                .price = resting->second.price,
+                .price = resting->second.order.price,
                 .quantity = trade_quantity,
             }
         );
 
         incoming.quantity -= trade_quantity;
-        resting->second.quantity -= trade_quantity;
+        resting->second.order.quantity -= trade_quantity;
 
-        if (resting->second.quantity == 0) {
+        if (resting->second.order.quantity == 0) {
             orders_by_id_.erase(resting);
             fifo.pop_front();
 

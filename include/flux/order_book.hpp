@@ -1,6 +1,6 @@
 #pragma once
 
-#include <deque>
+#include <list>
 #include <map>
 #include <optional>
 #include <unordered_map>
@@ -36,17 +36,22 @@ public:
 
 private:
     struct PriceLevel {
-        std::deque<OrderId> fifo_order_ids;
+        std::list<OrderId> fifo_order_ids;
+    };
+
+    struct OrderEntry {
+        Order order;
+        std::list<OrderId>::iterator fifo_position;
     };
 
     void rest_order(Order order);
     void match_buy_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
     void match_sell_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
-    void remove_from_level(Side side, Price price, OrderId order_id);
+    void remove_from_level(Side side, Price price, std::list<OrderId>::iterator fifo_position);
 
     std::map<Price, PriceLevel, std::greater<Price>> bids_;
     std::map<Price, PriceLevel, std::less<Price>> asks_;
-    std::unordered_map<OrderId, Order> orders_by_id_;
+    std::unordered_map<OrderId, OrderEntry> orders_by_id_;
 };
 
 }  // namespace flux
