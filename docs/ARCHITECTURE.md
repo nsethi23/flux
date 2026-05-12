@@ -64,3 +64,18 @@ The ITCH parser currently supports a focused subset:
 - `D`: Order Delete
 
 All integer fields are decoded as big-endian values. Timestamps are 6-byte integers.
+
+## ITCH Replay
+
+`itch::ReplayHandler` applies parsed ITCH messages to a `MatchingEngine`.
+
+Mapping:
+
+- `A` Add Order -> add resting limit order to the symbol's book.
+- `E` Order Executed -> reduce the resting order by executed quantity.
+- `X` Order Cancel -> reduce the resting order by canceled quantity.
+- `D` Order Delete -> cancel the resting order entirely.
+
+Execution, cancel, and delete messages identify orders by ID but do not carry the stock symbol. The replay handler therefore keeps an `order_id -> symbol` map after Add Order messages.
+
+Replay mode is separate from simulated matching mode. In replay mode, the historical feed is the source of truth for executions; the local engine mirrors feed state instead of deciding matches itself.

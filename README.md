@@ -41,6 +41,8 @@ The build now creates:
 - `flux`: small executable that links against `flux_core`.
 - `flux_bench`: simple benchmark executable for core order-book operations.
 
+The test suite currently includes order-book tests, ITCH parser tests, and ITCH replay tests.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
