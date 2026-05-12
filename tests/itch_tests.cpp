@@ -56,6 +56,38 @@ void push_stock(std::vector<std::byte>& bytes, std::string_view stock) {
     }
 }
 
+void append_framed_message(std::vector<std::byte>& feed, const std::vector<std::byte>& message) {
+    push_u16(feed, static_cast<std::uint16_t>(message.size()));
+    feed.insert(feed.end(), message.begin(), message.end());
+}
+
+std::vector<std::byte> add_order_message(
+    std::uint64_t order_id,
+    char side,
+    std::uint32_t quantity,
+    std::string_view stock,
+    std::uint32_t price
+) {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('A'));
+    push_header(bytes);
+    push_u64(bytes, order_id);
+    bytes.push_back(static_cast<std::byte>(side));
+    push_u32(bytes, quantity);
+    push_stock(bytes, stock);
+    push_u32(bytes, price);
+    return bytes;
+}
+
+std::vector<std::byte> cancel_message(std::uint64_t order_id, std::uint32_t quantity) {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('X'));
+    push_header(bytes);
+    push_u64(bytes, order_id);
+    push_u32(bytes, quantity);
+    return bytes;
+}
+
 void test_parse_add_order() {
     std::vector<std::byte> bytes;
     bytes.push_back(static_cast<std::byte>('A'));
@@ -162,6 +194,59 @@ void test_reject_invalid_side() {
     expect(result.error == flux::itch::ParseError::InvalidSide, "invalid side error returned");
 }
 
+void test_parse_feed_with_multiple_messages() {
+    std::vector<std::byte> feed;
+    append_framed_message(feed, add_order_message(123, 'B', 100, "AAPL", 18'7500));
+    append_framed_message(feed, cancel_message(123, 25));
+
+    const auto result = flux::itch::parse_feed(feed);
+
+    expect(!result.error.has_value(), "valid feed has no feed error");
+    expect(result.messages.size() == 2, "valid feed parses two messages");
+    expect(
+        std::holds_alternative<flux::itch::AddOrder>(result.messages[0].message),
+        "first feed message is add order"
+    );
+    expect(
+        std::holds_alternative<flux::itch::OrderCancel>(result.messages[1].message),
+        "second feed message is cancel"
+    );
+    expect(result.messages[0].offset == 2, "first feed message offset is after length prefix");
+}
+
+void test_parse_feed_rejects_truncated_length() {
+    const std::vector<std::byte> feed{static_cast<std::byte>(0x00)};
+
+    const auto result = flux::itch::parse_feed(feed);
+
+    expect(result.error == flux::itch::FeedError::TruncatedLength, "truncated length error returned");
+    expect(result.error_offset == 0, "truncated length offset reported");
+    expect(result.messages.empty(), "truncated length produces no messages");
+}
+
+void test_parse_feed_rejects_truncated_message() {
+    std::vector<std::byte> feed;
+    push_u16(feed, 36);
+    feed.push_back(static_cast<std::byte>('A'));
+
+    const auto result = flux::itch::parse_feed(feed);
+
+    expect(result.error == flux::itch::FeedError::TruncatedMessage, "truncated message error returned");
+    expect(result.error_offset == 0, "truncated message offset points to frame start");
+    expect(result.messages.empty(), "truncated message produces no messages");
+}
+
+void test_parse_feed_reports_message_parse_error() {
+    std::vector<std::byte> feed;
+    append_framed_message(feed, add_order_message(123, 'Z', 100, "AAPL", 18'7500));
+
+    const auto result = flux::itch::parse_feed(feed);
+
+    expect(result.error == flux::itch::FeedError::MessageParseError, "message parse error returned");
+    expect(result.parse_error == flux::itch::ParseError::InvalidSide, "underlying parse error preserved");
+    expect(result.error_offset == 2, "message parse error offset points to payload");
+}
+
 }  // namespace
 
 int main() {
@@ -172,6 +257,10 @@ int main() {
     test_reject_unknown_message_type();
     test_reject_wrong_size();
     test_reject_invalid_side();
+    test_parse_feed_with_multiple_messages();
+    test_parse_feed_rejects_truncated_length();
+    test_parse_feed_rejects_truncated_message();
+    test_parse_feed_reports_message_parse_error();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";

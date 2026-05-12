@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace flux::itch {
 namespace {
@@ -158,6 +159,47 @@ ParseResult parse_message(std::span<const std::byte> bytes) {
         default:
             return {.error = ParseError::UnknownMessageType};
     }
+}
+
+FeedParseResult parse_feed(std::span<const std::byte> bytes) {
+    FeedParseResult result;
+    std::size_t offset = 0;
+
+    while (offset < bytes.size()) {
+        if (bytes.size() - offset < 2) {
+            result.error = FeedError::TruncatedLength;
+            result.error_offset = offset;
+            return result;
+        }
+
+        const std::uint16_t message_size = read_u16(bytes, offset);
+        offset += 2;
+
+        if (bytes.size() - offset < message_size) {
+            result.error = FeedError::TruncatedMessage;
+            result.error_offset = offset - 2;
+            return result;
+        }
+
+        const auto message_bytes = bytes.subspan(offset, message_size);
+        auto parsed = parse_message(message_bytes);
+        if (!parsed.message.has_value()) {
+            result.error = FeedError::MessageParseError;
+            result.error_offset = offset;
+            result.parse_error = parsed.error;
+            return result;
+        }
+
+        result.messages.push_back(
+            {
+                .offset = offset,
+                .message = *parsed.message,
+            }
+        );
+        offset += message_size;
+    }
+
+    return result;
 }
 
 }  // namespace flux::itch

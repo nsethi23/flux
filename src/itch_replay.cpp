@@ -26,6 +26,37 @@ ReplayResult ReplayHandler::apply(const Message& message) {
     );
 }
 
+ReplaySummary ReplayHandler::apply_all(std::span<const FeedMessage> messages) {
+    ReplaySummary summary;
+
+    for (const auto& feed_message : messages) {
+        const auto result = apply(feed_message.message);
+
+        switch (result.action) {
+            case ReplayAction::Added:
+                ++summary.added;
+                break;
+            case ReplayAction::Executed:
+                ++summary.executed;
+                break;
+            case ReplayAction::Canceled:
+                ++summary.canceled;
+                break;
+            case ReplayAction::Deleted:
+                ++summary.deleted;
+                break;
+            case ReplayAction::Rejected:
+                ++summary.rejected;
+                break;
+            case ReplayAction::UnknownOrder:
+                ++summary.unknown_orders;
+                break;
+        }
+    }
+
+    return summary;
+}
+
 ReplayResult ReplayHandler::apply_add_order(const AddOrder& message) {
     auto& book = engine_.book_for(message.stock);
     const auto result = book.add_limit_order(

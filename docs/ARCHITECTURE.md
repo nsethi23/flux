@@ -65,6 +65,13 @@ The ITCH parser currently supports a focused subset:
 
 All integer fields are decoded as big-endian values. Timestamps are 6-byte integers.
 
+`parse_message` parses one raw ITCH message payload. `parse_feed` parses a memory buffer containing length-prefixed messages. Each frame is:
+
+```text
+2-byte big-endian message length
+N-byte ITCH message payload
+```
+
 ## ITCH Replay
 
 `itch::ReplayHandler` applies parsed ITCH messages to a `MatchingEngine`.

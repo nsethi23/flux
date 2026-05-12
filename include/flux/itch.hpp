@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "flux/order.hpp"
 
@@ -57,11 +58,30 @@ enum class ParseError {
     InvalidSide,
 };
 
+enum class FeedError {
+    TruncatedLength,
+    TruncatedMessage,
+    MessageParseError,
+};
+
 struct ParseResult {
     std::optional<Message> message;
     std::optional<ParseError> error;
 };
 
+struct FeedMessage {
+    std::size_t offset{};
+    Message message;
+};
+
+struct FeedParseResult {
+    std::vector<FeedMessage> messages;
+    std::optional<FeedError> error;
+    std::size_t error_offset{};
+    std::optional<ParseError> parse_error;
+};
+
 ParseResult parse_message(std::span<const std::byte> bytes);
+FeedParseResult parse_feed(std::span<const std::byte> bytes);
 
 }  // namespace flux::itch

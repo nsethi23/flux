@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <span>
 #include <string>
 #include <unordered_map>
 
@@ -21,11 +23,21 @@ struct ReplayResult {
     ReplayAction action{ReplayAction::Rejected};
 };
 
+struct ReplaySummary {
+    std::size_t added{};
+    std::size_t executed{};
+    std::size_t canceled{};
+    std::size_t deleted{};
+    std::size_t rejected{};
+    std::size_t unknown_orders{};
+};
+
 class ReplayHandler {
 public:
     explicit ReplayHandler(MatchingEngine& engine);
 
     ReplayResult apply(const Message& message);
+    ReplaySummary apply_all(std::span<const FeedMessage> messages);
 
 private:
     ReplayResult apply_add_order(const AddOrder& message);

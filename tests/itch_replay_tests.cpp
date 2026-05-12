@@ -4,6 +4,7 @@
 #include <iostream>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -180,6 +181,51 @@ void test_replay_forgets_fully_removed_order() {
     expect(result.action == flux::itch::ReplayAction::UnknownOrder, "fully removed order is forgotten");
 }
 
+void test_replay_apply_all_reports_summary() {
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+
+    std::vector<flux::itch::FeedMessage> messages{
+        {
+            .offset = 2,
+            .message =
+                flux::itch::AddOrder{
+                    .header = header(),
+                    .order_id = 100,
+                    .side = flux::Side::Buy,
+                    .quantity = 50,
+                    .stock = "AAPL",
+                    .price = 18'7500,
+                },
+        },
+        {
+            .offset = 40,
+            .message =
+                flux::itch::OrderCancel{
+                    .header = header(),
+                    .order_id = 100,
+                    .canceled_quantity = 10,
+                },
+        },
+        {
+            .offset = 65,
+            .message =
+                flux::itch::OrderDelete{
+                    .header = header(),
+                    .order_id = 404,
+                },
+        },
+    };
+
+    const auto summary = replay.apply_all(messages);
+    const auto* book = engine.find_book("AAPL");
+
+    expect(summary.added == 1, "summary counts added messages");
+    expect(summary.canceled == 1, "summary counts canceled messages");
+    expect(summary.unknown_orders == 1, "summary counts unknown orders");
+    expect(book->order_status(100)->quantity == 40, "apply_all updates book state");
+}
+
 }  // namespace
 
 int main() {
@@ -189,6 +235,7 @@ int main() {
     test_replay_delete_removes_order();
     test_replay_unknown_order_returns_unknown_order();
     test_replay_forgets_fully_removed_order();
+    test_replay_apply_all_reports_summary();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";
