@@ -16,6 +16,16 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+## Benchmark
+
+Use a release build for meaningful benchmark numbers:
+
+```sh
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release
+./build-release/flux_bench
+```
+
 ## Current Structure
 
 - `CMakeLists.txt`: top-level build configuration.
@@ -26,6 +36,7 @@ The build now creates:
 
 - `flux_core`: reusable library for the matching-engine code.
 - `flux`: small executable that links against `flux_core`.
+- `flux_bench`: simple benchmark executable for core order-book operations.
 
 ## Design Direction
 

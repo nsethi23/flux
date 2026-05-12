@@ -1,0 +1,2 @@
+/usr/bin/ar qc libflux_core.a CMakeFiles/flux_core.dir/src/order_book.cpp.o
+/usr/bin/ranlib libflux_core.a
