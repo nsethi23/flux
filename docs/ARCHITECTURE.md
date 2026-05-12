@@ -59,9 +59,13 @@ Trades execute at the resting order's price.
 The ITCH parser currently supports a focused subset:
 
 - `A`: Add Order
+- `F`: Add Order with MPID Attribution
 - `E`: Order Executed
+- `C`: Order Executed With Price
 - `X`: Order Cancel
 - `D`: Order Delete
+- `U`: Order Replace
+- `R`: Stock Directory
 
 All integer fields are decoded as big-endian values. Timestamps are 6-byte integers.
 
@@ -79,9 +83,13 @@ N-byte ITCH message payload
 Mapping:
 
 - `A` Add Order -> add resting limit order to the symbol's book.
+- `F` Add Order with MPID Attribution -> add resting limit order to the symbol's book.
 - `E` Order Executed -> reduce the resting order by executed quantity.
+- `C` Order Executed With Price -> reduce the resting order by executed quantity.
 - `X` Order Cancel -> reduce the resting order by canceled quantity.
 - `D` Order Delete -> cancel the resting order entirely.
+- `U` Order Replace -> replace order ID, price, and quantity while preserving side and symbol.
+- `R` Stock Directory -> parsed and counted as ignored by replay.
 
 Execution, cancel, and delete messages identify orders by ID but do not carry the stock symbol. The replay handler therefore keeps an `order_id -> symbol` map after Add Order messages.
 

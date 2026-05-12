@@ -1,8 +1,13 @@
+#include "flux/itch.hpp"
+#include "flux/itch_replay.hpp"
+#include "flux/matching_engine.hpp"
 #include "flux/order_book.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <string_view>
@@ -54,6 +59,69 @@ BenchmarkResult run_benchmark(std::string_view name, int operations, Func func) 
         .median_ns_per_op = samples[samples.size() / 2],
         .max_ns_per_op = samples.back(),
     };
+}
+
+void push_u16(std::vector<std::byte>& bytes, std::uint16_t value) {
+    bytes.push_back(static_cast<std::byte>((value >> 8U) & 0xFFU));
+    bytes.push_back(static_cast<std::byte>(value & 0xFFU));
+}
+
+void push_u32(std::vector<std::byte>& bytes, std::uint32_t value) {
+    bytes.push_back(static_cast<std::byte>((value >> 24U) & 0xFFU));
+    bytes.push_back(static_cast<std::byte>((value >> 16U) & 0xFFU));
+    bytes.push_back(static_cast<std::byte>((value >> 8U) & 0xFFU));
+    bytes.push_back(static_cast<std::byte>(value & 0xFFU));
+}
+
+void push_u48(std::vector<std::byte>& bytes, std::uint64_t value) {
+    for (int shift = 40; shift >= 0; shift -= 8) {
+        bytes.push_back(static_cast<std::byte>((value >> shift) & 0xFFU));
+    }
+}
+
+void push_u64(std::vector<std::byte>& bytes, std::uint64_t value) {
+    for (int shift = 56; shift >= 0; shift -= 8) {
+        bytes.push_back(static_cast<std::byte>((value >> shift) & 0xFFU));
+    }
+}
+
+void push_header(std::vector<std::byte>& bytes) {
+    push_u16(bytes, 1);
+    push_u16(bytes, 1);
+    push_u48(bytes, 1);
+}
+
+void push_stock(std::vector<std::byte>& bytes, std::string_view stock) {
+    for (std::size_t i = 0; i < 8; ++i) {
+        const char value = i < stock.size() ? stock[i] : ' ';
+        bytes.push_back(static_cast<std::byte>(value));
+    }
+}
+
+std::vector<std::byte> make_add_order_message(flux::OrderId order_id) {
+    std::vector<std::byte> bytes;
+    bytes.reserve(36);
+    bytes.push_back(static_cast<std::byte>('A'));
+    push_header(bytes);
+    push_u64(bytes, order_id);
+    bytes.push_back(static_cast<std::byte>('B'));
+    push_u32(bytes, 100);
+    push_stock(bytes, "AAPL");
+    push_u32(bytes, 18'7500);
+    return bytes;
+}
+
+std::vector<std::byte> make_feed(int messages) {
+    std::vector<std::byte> feed;
+    feed.reserve(static_cast<std::size_t>(messages) * 38);
+
+    for (int i = 0; i < messages; ++i) {
+        const auto message = make_add_order_message(static_cast<flux::OrderId>(i + 1));
+        push_u16(feed, static_cast<std::uint16_t>(message.size()));
+        feed.insert(feed.end(), message.begin(), message.end());
+    }
+
+    return feed;
 }
 
 BenchmarkResult bench_add_resting_limit_orders() {
@@ -146,6 +214,87 @@ BenchmarkResult bench_market_order_matches() {
     });
 }
 
+BenchmarkResult bench_mixed_order_flow() {
+    return run_benchmark("mixed order flow", kIterations, [] {
+        flux::OrderBook book;
+        flux::OrderId next_id = 1;
+
+        for (int i = 0; i < kIterations; ++i) {
+            const int action = i % 10;
+
+            if (action < 6) {
+                book.add_limit_order(
+                    {
+                        .id = next_id++,
+                        .side = action % 2 == 0 ? flux::Side::Buy : flux::Side::Sell,
+                        .price = kBasePrice + ((i % 21) - 10),
+                        .quantity = 100,
+                    }
+                );
+            } else if (action < 8) {
+                const flux::OrderId candidate = static_cast<flux::OrderId>((i / 2) + 1);
+                book.cancel_order(candidate);
+            } else if (action == 8) {
+                book.add_market_order(
+                    {
+                        .id = next_id++,
+                        .side = flux::Side::Buy,
+                        .price = 0,
+                        .quantity = 50,
+                    }
+                );
+            } else {
+                book.add_limit_order(
+                    {
+                        .id = next_id++,
+                        .side = flux::Side::Sell,
+                        .price = kBasePrice - 5,
+                        .quantity = 50,
+                    }
+                );
+            }
+        }
+    });
+}
+
+BenchmarkResult bench_parse_single_itch_message() {
+    const auto message = make_add_order_message(1);
+
+    return run_benchmark("ITCH parse message", kIterations, [&message] {
+        for (int i = 0; i < kIterations; ++i) {
+            const auto parsed = flux::itch::parse_message(message);
+            if (!parsed.message.has_value()) {
+                std::abort();
+            }
+        }
+    });
+}
+
+BenchmarkResult bench_parse_itch_feed() {
+    const auto feed = make_feed(kIterations);
+
+    return run_benchmark("ITCH parse feed", kIterations, [&feed] {
+        const auto parsed = flux::itch::parse_feed(feed);
+        if (parsed.error.has_value()) {
+            std::abort();
+        }
+    });
+}
+
+BenchmarkResult bench_replay_itch_feed() {
+    const auto feed = make_feed(kIterations);
+    const auto parsed = flux::itch::parse_feed(feed);
+
+    return run_benchmark("ITCH replay feed", kIterations, [&parsed] {
+        flux::MatchingEngine engine;
+        flux::itch::ReplayHandler replay{engine};
+        const auto summary = replay.apply_all(parsed.messages);
+        if (summary.added != static_cast<std::size_t>(kIterations)) {
+            std::abort();
+        }
+    });
+}
+
 }  // namespace
 
 int main() {
@@ -158,6 +307,10 @@ int main() {
     print_result(bench_cancel_orders());
     print_result(bench_aggressive_limit_matches());
     print_result(bench_market_order_matches());
+    print_result(bench_mixed_order_flow());
+    print_result(bench_parse_single_itch_message());
+    print_result(bench_parse_itch_feed());
+    print_result(bench_replay_itch_feed());
 
     return 0;
 }

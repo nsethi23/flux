@@ -32,11 +32,30 @@ struct AddOrder {
     Price price{};
 };
 
+struct AddOrderWithMpid {
+    MessageHeader header;
+    OrderId order_id{};
+    Side side{};
+    Quantity quantity{};
+    std::string stock;
+    Price price{};
+    std::string attribution;
+};
+
 struct OrderExecuted {
     MessageHeader header;
     OrderId order_id{};
     Quantity executed_quantity{};
     MatchNumber match_number{};
+};
+
+struct OrderExecutedWithPrice {
+    MessageHeader header;
+    OrderId order_id{};
+    Quantity executed_quantity{};
+    MatchNumber match_number{};
+    bool printable{};
+    Price execution_price{};
 };
 
 struct OrderCancel {
@@ -50,7 +69,32 @@ struct OrderDelete {
     OrderId order_id{};
 };
 
-using Message = std::variant<AddOrder, OrderExecuted, OrderCancel, OrderDelete>;
+struct OrderReplace {
+    MessageHeader header;
+    OrderId original_order_id{};
+    OrderId new_order_id{};
+    Quantity quantity{};
+    Price price{};
+};
+
+struct StockDirectory {
+    MessageHeader header;
+    std::string stock;
+    char market_category{};
+    char financial_status_indicator{};
+    std::uint32_t round_lot_size{};
+    bool round_lots_only{};
+};
+
+using Message = std::variant<
+    AddOrder,
+    AddOrderWithMpid,
+    OrderExecuted,
+    OrderExecutedWithPrice,
+    OrderCancel,
+    OrderDelete,
+    OrderReplace,
+    StockDirectory>;
 
 enum class ParseError {
     UnknownMessageType,

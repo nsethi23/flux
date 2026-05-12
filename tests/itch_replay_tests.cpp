@@ -74,6 +74,38 @@ void test_replay_execute_reduces_quantity() {
     expect(book->order_status(100)->quantity == 30, "execution reduces resting quantity");
 }
 
+void test_replay_executed_with_price_reduces_quantity() {
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+
+    replay.apply(
+        flux::itch::AddOrder{
+            .header = header(),
+            .order_id = 100,
+            .side = flux::Side::Sell,
+            .quantity = 50,
+            .stock = "MSFT",
+            .price = 40'0000,
+        }
+    );
+
+    const auto result = replay.apply(
+        flux::itch::OrderExecutedWithPrice{
+            .header = header(),
+            .order_id = 100,
+            .executed_quantity = 20,
+            .match_number = 900,
+            .printable = true,
+            .execution_price = 39'9900,
+        }
+    );
+
+    const auto* book = engine.find_book("MSFT");
+
+    expect(result.action == flux::itch::ReplayAction::Executed, "executed-with-price replay returns Executed");
+    expect(book->order_status(100)->quantity == 30, "executed-with-price reduces resting quantity");
+}
+
 void test_replay_cancel_reduces_quantity() {
     flux::MatchingEngine engine;
     flux::itch::ReplayHandler replay{engine};
@@ -181,6 +213,81 @@ void test_replay_forgets_fully_removed_order() {
     expect(result.action == flux::itch::ReplayAction::UnknownOrder, "fully removed order is forgotten");
 }
 
+void test_replay_add_order_with_mpid_routes_to_symbol_book() {
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+
+    const auto result = replay.apply(
+        flux::itch::AddOrderWithMpid{
+            .header = header(),
+            .order_id = 100,
+            .side = flux::Side::Sell,
+            .quantity = 50,
+            .stock = "MSFT",
+            .price = 40'0000,
+            .attribution = "ABCD",
+        }
+    );
+
+    const auto* book = engine.find_book("MSFT");
+
+    expect(result.action == flux::itch::ReplayAction::Added, "MPID add replay returns Added");
+    expect(book != nullptr, "MPID add creates symbol book");
+    expect(book->best_ask() == std::optional<flux::Price>{40'0000}, "MPID add creates ask");
+}
+
+void test_replay_replace_order_updates_id_price_and_quantity() {
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+
+    replay.apply(
+        flux::itch::AddOrder{
+            .header = header(),
+            .order_id = 100,
+            .side = flux::Side::Buy,
+            .quantity = 50,
+            .stock = "AAPL",
+            .price = 18'7500,
+        }
+    );
+
+    const auto result = replay.apply(
+        flux::itch::OrderReplace{
+            .header = header(),
+            .original_order_id = 100,
+            .new_order_id = 101,
+            .quantity = 30,
+            .price = 18'7600,
+        }
+    );
+
+    const auto* book = engine.find_book("AAPL");
+
+    expect(result.action == flux::itch::ReplayAction::Replaced, "replace replay returns Replaced");
+    expect(!book->order_status(100).has_value(), "replace removes original id");
+    expect(book->order_status(101)->quantity == 30, "replace inserts new quantity");
+    expect(book->best_bid() == std::optional<flux::Price>{18'7600}, "replace updates price");
+}
+
+void test_replay_stock_directory_is_ignored() {
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+
+    const auto result = replay.apply(
+        flux::itch::StockDirectory{
+            .header = header(),
+            .stock = "AAPL",
+            .market_category = 'Q',
+            .financial_status_indicator = 'N',
+            .round_lot_size = 100,
+            .round_lots_only = true,
+        }
+    );
+
+    expect(result.action == flux::itch::ReplayAction::Ignored, "stock directory replay is ignored");
+    expect(engine.symbol_count() == 0, "stock directory does not create book");
+}
+
 void test_replay_apply_all_reports_summary() {
     flux::MatchingEngine engine;
     flux::itch::ReplayHandler replay{engine};
@@ -215,6 +322,18 @@ void test_replay_apply_all_reports_summary() {
                     .order_id = 404,
                 },
         },
+        {
+            .offset = 90,
+            .message =
+                flux::itch::StockDirectory{
+                    .header = header(),
+                    .stock = "AAPL",
+                    .market_category = 'Q',
+                    .financial_status_indicator = 'N',
+                    .round_lot_size = 100,
+                    .round_lots_only = true,
+                },
+        },
     };
 
     const auto summary = replay.apply_all(messages);
@@ -222,6 +341,7 @@ void test_replay_apply_all_reports_summary() {
 
     expect(summary.added == 1, "summary counts added messages");
     expect(summary.canceled == 1, "summary counts canceled messages");
+    expect(summary.ignored == 1, "summary counts ignored messages");
     expect(summary.unknown_orders == 1, "summary counts unknown orders");
     expect(book->order_status(100)->quantity == 40, "apply_all updates book state");
 }
@@ -231,7 +351,11 @@ void test_replay_apply_all_reports_summary() {
 int main() {
     test_replay_add_order_routes_to_symbol_book();
     test_replay_execute_reduces_quantity();
+    test_replay_executed_with_price_reduces_quantity();
     test_replay_cancel_reduces_quantity();
+    test_replay_add_order_with_mpid_routes_to_symbol_book();
+    test_replay_replace_order_updates_id_price_and_quantity();
+    test_replay_stock_directory_is_ignored();
     test_replay_delete_removes_order();
     test_replay_unknown_order_returns_unknown_order();
     test_replay_forgets_fully_removed_order();

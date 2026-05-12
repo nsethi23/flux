@@ -14,12 +14,20 @@ ReplayResult ReplayHandler::apply(const Message& message) {
 
             if constexpr (std::is_same_v<MessageType, AddOrder>) {
                 return this->apply_add_order(typed_message);
+            } else if constexpr (std::is_same_v<MessageType, AddOrderWithMpid>) {
+                return this->apply_add_order_with_mpid(typed_message);
             } else if constexpr (std::is_same_v<MessageType, OrderExecuted>) {
                 return this->apply_order_executed(typed_message);
+            } else if constexpr (std::is_same_v<MessageType, OrderExecutedWithPrice>) {
+                return this->apply_order_executed_with_price(typed_message);
             } else if constexpr (std::is_same_v<MessageType, OrderCancel>) {
                 return this->apply_order_cancel(typed_message);
-            } else {
+            } else if constexpr (std::is_same_v<MessageType, OrderDelete>) {
                 return this->apply_order_delete(typed_message);
+            } else if constexpr (std::is_same_v<MessageType, OrderReplace>) {
+                return this->apply_order_replace(typed_message);
+            } else {
+                return this->apply_stock_directory(typed_message);
             }
         },
         message
@@ -44,6 +52,12 @@ ReplaySummary ReplayHandler::apply_all(std::span<const FeedMessage> messages) {
                 break;
             case ReplayAction::Deleted:
                 ++summary.deleted;
+                break;
+            case ReplayAction::Replaced:
+                ++summary.replaced;
+                break;
+            case ReplayAction::Ignored:
+                ++summary.ignored;
                 break;
             case ReplayAction::Rejected:
                 ++summary.rejected;
@@ -79,6 +93,19 @@ ReplayResult ReplayHandler::apply_add_order(const AddOrder& message) {
     return {.action = ReplayAction::Added};
 }
 
+ReplayResult ReplayHandler::apply_add_order_with_mpid(const AddOrderWithMpid& message) {
+    return apply_add_order(
+        {
+            .header = message.header,
+            .order_id = message.order_id,
+            .side = message.side,
+            .quantity = message.quantity,
+            .stock = message.stock,
+            .price = message.price,
+        }
+    );
+}
+
 ReplayResult ReplayHandler::apply_order_executed(const OrderExecuted& message) {
     const auto symbol = symbol_by_order_id_.find(message.order_id);
     if (symbol == symbol_by_order_id_.end()) {
@@ -96,6 +123,17 @@ ReplayResult ReplayHandler::apply_order_executed(const OrderExecuted& message) {
     }
 
     return {.action = ReplayAction::Executed};
+}
+
+ReplayResult ReplayHandler::apply_order_executed_with_price(const OrderExecutedWithPrice& message) {
+    return apply_order_executed(
+        {
+            .header = message.header,
+            .order_id = message.order_id,
+            .executed_quantity = message.executed_quantity,
+            .match_number = message.match_number,
+        }
+    );
 }
 
 ReplayResult ReplayHandler::apply_order_cancel(const OrderCancel& message) {
@@ -131,6 +169,43 @@ ReplayResult ReplayHandler::apply_order_delete(const OrderDelete& message) {
 
     symbol_by_order_id_.erase(symbol);
     return {.action = ReplayAction::Deleted};
+}
+
+ReplayResult ReplayHandler::apply_order_replace(const OrderReplace& message) {
+    const auto symbol = symbol_by_order_id_.find(message.original_order_id);
+    if (symbol == symbol_by_order_id_.end()) {
+        return {.action = ReplayAction::UnknownOrder};
+    }
+
+    auto& book = engine_.book_for(symbol->second);
+    const auto status = book.order_status(message.original_order_id);
+    if (!status.has_value()) {
+        symbol_by_order_id_.erase(symbol);
+        return {.action = ReplayAction::UnknownOrder};
+    }
+
+    const std::string stock = symbol->second;
+    const bool replaced = book.replace_order(
+        message.original_order_id,
+        {
+            .id = message.new_order_id,
+            .side = status->side,
+            .price = message.price,
+            .quantity = message.quantity,
+        }
+    );
+
+    if (!replaced) {
+        return {.action = ReplayAction::Rejected};
+    }
+
+    symbol_by_order_id_.erase(symbol);
+    symbol_by_order_id_[message.new_order_id] = stock;
+    return {.action = ReplayAction::Replaced};
+}
+
+ReplayResult ReplayHandler::apply_stock_directory(const StockDirectory& /*message*/) {
+    return {.action = ReplayAction::Ignored};
 }
 
 }  // namespace flux::itch

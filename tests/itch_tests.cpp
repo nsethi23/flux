@@ -56,6 +56,13 @@ void push_stock(std::vector<std::byte>& bytes, std::string_view stock) {
     }
 }
 
+void push_padded(std::vector<std::byte>& bytes, std::string_view value, std::size_t width) {
+    for (std::size_t i = 0; i < width; ++i) {
+        const char ch = i < value.size() ? value[i] : ' ';
+        bytes.push_back(static_cast<std::byte>(ch));
+    }
+}
+
 void append_framed_message(std::vector<std::byte>& feed, const std::vector<std::byte>& message) {
     push_u16(feed, static_cast<std::uint16_t>(message.size()));
     feed.insert(feed.end(), message.begin(), message.end());
@@ -132,6 +139,49 @@ void test_parse_order_executed() {
     expect(message->match_number == 999, "match number parsed");
 }
 
+void test_parse_add_order_with_mpid() {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('F'));
+    push_header(bytes);
+    push_u64(bytes, 123);
+    bytes.push_back(static_cast<std::byte>('S'));
+    push_u32(bytes, 100);
+    push_stock(bytes, "MSFT");
+    push_u32(bytes, 40'0000);
+    push_padded(bytes, "ABCD", 4);
+
+    const auto result = flux::itch::parse_message(bytes);
+    const auto* message = std::get_if<flux::itch::AddOrderWithMpid>(&*result.message);
+
+    expect(message != nullptr, "parsed message is AddOrderWithMpid");
+    expect(message->order_id == 123, "MPID add order id parsed");
+    expect(message->side == flux::Side::Sell, "MPID add side parsed");
+    expect(message->stock == "MSFT", "MPID add stock parsed");
+    expect(message->price == 40'0000, "MPID add price parsed");
+    expect(message->attribution == "ABCD", "MPID add attribution parsed");
+}
+
+void test_parse_order_executed_with_price() {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('C'));
+    push_header(bytes);
+    push_u64(bytes, 123);
+    push_u32(bytes, 40);
+    push_u64(bytes, 999);
+    bytes.push_back(static_cast<std::byte>('Y'));
+    push_u32(bytes, 18'7500);
+
+    const auto result = flux::itch::parse_message(bytes);
+    const auto* message = std::get_if<flux::itch::OrderExecutedWithPrice>(&*result.message);
+
+    expect(message != nullptr, "parsed message is OrderExecutedWithPrice");
+    expect(message->order_id == 123, "executed with price order id parsed");
+    expect(message->executed_quantity == 40, "executed with price quantity parsed");
+    expect(message->match_number == 999, "executed with price match number parsed");
+    expect(message->printable, "executed with price printable flag parsed");
+    expect(message->execution_price == 18'7500, "executed with price price parsed");
+}
+
 void test_parse_order_cancel() {
     std::vector<std::byte> bytes;
     bytes.push_back(static_cast<std::byte>('X'));
@@ -145,6 +195,47 @@ void test_parse_order_cancel() {
     expect(message != nullptr, "parsed message is OrderCancel");
     expect(message->order_id == 123, "cancel order id parsed");
     expect(message->canceled_quantity == 25, "canceled quantity parsed");
+}
+
+void test_parse_order_replace() {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('U'));
+    push_header(bytes);
+    push_u64(bytes, 123);
+    push_u64(bytes, 456);
+    push_u32(bytes, 75);
+    push_u32(bytes, 18'7600);
+
+    const auto result = flux::itch::parse_message(bytes);
+    const auto* message = std::get_if<flux::itch::OrderReplace>(&*result.message);
+
+    expect(message != nullptr, "parsed message is OrderReplace");
+    expect(message->original_order_id == 123, "replace original id parsed");
+    expect(message->new_order_id == 456, "replace new id parsed");
+    expect(message->quantity == 75, "replace quantity parsed");
+    expect(message->price == 18'7600, "replace price parsed");
+}
+
+void test_parse_stock_directory() {
+    std::vector<std::byte> bytes;
+    bytes.push_back(static_cast<std::byte>('R'));
+    push_header(bytes);
+    push_stock(bytes, "AAPL");
+    bytes.push_back(static_cast<std::byte>('Q'));
+    bytes.push_back(static_cast<std::byte>('N'));
+    push_u32(bytes, 100);
+    bytes.push_back(static_cast<std::byte>('Y'));
+    push_padded(bytes, "", 13);
+
+    const auto result = flux::itch::parse_message(bytes);
+    const auto* message = std::get_if<flux::itch::StockDirectory>(&*result.message);
+
+    expect(message != nullptr, "parsed message is StockDirectory");
+    expect(message->stock == "AAPL", "stock directory stock parsed");
+    expect(message->market_category == 'Q', "stock directory market category parsed");
+    expect(message->financial_status_indicator == 'N', "stock directory financial status parsed");
+    expect(message->round_lot_size == 100, "stock directory round lot parsed");
+    expect(message->round_lots_only, "stock directory round lots flag parsed");
 }
 
 void test_parse_order_delete() {
@@ -251,9 +342,13 @@ void test_parse_feed_reports_message_parse_error() {
 
 int main() {
     test_parse_add_order();
+    test_parse_add_order_with_mpid();
     test_parse_order_executed();
+    test_parse_order_executed_with_price();
     test_parse_order_cancel();
     test_parse_order_delete();
+    test_parse_order_replace();
+    test_parse_stock_directory();
     test_reject_unknown_message_type();
     test_reject_wrong_size();
     test_reject_invalid_side();

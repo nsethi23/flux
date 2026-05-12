@@ -11,9 +11,13 @@ namespace {
 
 constexpr std::size_t kHeaderOffset = 1;
 constexpr std::size_t kAddOrderSize = 36;
+constexpr std::size_t kAddOrderWithMpidSize = 40;
 constexpr std::size_t kOrderExecutedSize = 31;
+constexpr std::size_t kOrderExecutedWithPriceSize = 36;
 constexpr std::size_t kOrderCancelSize = 23;
 constexpr std::size_t kOrderDeleteSize = 19;
+constexpr std::size_t kOrderReplaceSize = 35;
+constexpr std::size_t kStockDirectorySize = 39;
 
 std::uint8_t byte_at(std::span<const std::byte> bytes, std::size_t offset) {
     return static_cast<std::uint8_t>(bytes[offset]);
@@ -47,17 +51,22 @@ std::uint64_t read_u64(std::span<const std::byte> bytes, std::size_t offset) {
     return value;
 }
 
-std::string read_stock(std::span<const std::byte> bytes, std::size_t offset) {
-    std::array<char, 8> chars{};
-    for (std::size_t i = 0; i < chars.size(); ++i) {
+template <std::size_t Size>
+std::string read_padded_string(std::span<const std::byte> bytes, std::size_t offset) {
+    std::array<char, Size> chars{};
+    for (std::size_t i = 0; i < Size; ++i) {
         chars[i] = static_cast<char>(byte_at(bytes, offset + i));
     }
 
-    std::string stock(chars.data(), chars.size());
-    while (!stock.empty() && stock.back() == ' ') {
-        stock.pop_back();
+    std::string value(chars.data(), chars.size());
+    while (!value.empty() && value.back() == ' ') {
+        value.pop_back();
     }
-    return stock;
+    return value;
+}
+
+std::string read_stock(std::span<const std::byte> bytes, std::size_t offset) {
+    return read_padded_string<8>(bytes, offset);
 }
 
 std::optional<Side> read_side(std::span<const std::byte> bytes, std::size_t offset) {
@@ -114,6 +123,29 @@ ParseResult parse_message(std::span<const std::byte> bytes) {
                     },
             };
         }
+        case 'F': {
+            if (bytes.size() != kAddOrderWithMpidSize) {
+                return wrong_size();
+            }
+
+            const auto side = read_side(bytes, 19);
+            if (!side.has_value()) {
+                return {.error = ParseError::InvalidSide};
+            }
+
+            return {
+                .message =
+                    AddOrderWithMpid{
+                        .header = read_header(bytes),
+                        .order_id = read_u64(bytes, 11),
+                        .side = *side,
+                        .quantity = read_u32(bytes, 20),
+                        .stock = read_stock(bytes, 24),
+                        .price = static_cast<Price>(read_u32(bytes, 32)),
+                        .attribution = read_padded_string<4>(bytes, 36),
+                    },
+            };
+        }
         case 'E': {
             if (bytes.size() != kOrderExecutedSize) {
                 return wrong_size();
@@ -126,6 +158,23 @@ ParseResult parse_message(std::span<const std::byte> bytes) {
                         .order_id = read_u64(bytes, 11),
                         .executed_quantity = read_u32(bytes, 19),
                         .match_number = read_u64(bytes, 23),
+                    },
+            };
+        }
+        case 'C': {
+            if (bytes.size() != kOrderExecutedWithPriceSize) {
+                return wrong_size();
+            }
+
+            return {
+                .message =
+                    OrderExecutedWithPrice{
+                        .header = read_header(bytes),
+                        .order_id = read_u64(bytes, 11),
+                        .executed_quantity = read_u32(bytes, 19),
+                        .match_number = read_u64(bytes, 23),
+                        .printable = static_cast<char>(byte_at(bytes, 31)) == 'Y',
+                        .execution_price = static_cast<Price>(read_u32(bytes, 32)),
                     },
             };
         }
@@ -153,6 +202,39 @@ ParseResult parse_message(std::span<const std::byte> bytes) {
                     OrderDelete{
                         .header = read_header(bytes),
                         .order_id = read_u64(bytes, 11),
+                    },
+            };
+        }
+        case 'U': {
+            if (bytes.size() != kOrderReplaceSize) {
+                return wrong_size();
+            }
+
+            return {
+                .message =
+                    OrderReplace{
+                        .header = read_header(bytes),
+                        .original_order_id = read_u64(bytes, 11),
+                        .new_order_id = read_u64(bytes, 19),
+                        .quantity = read_u32(bytes, 27),
+                        .price = static_cast<Price>(read_u32(bytes, 31)),
+                    },
+            };
+        }
+        case 'R': {
+            if (bytes.size() != kStockDirectorySize) {
+                return wrong_size();
+            }
+
+            return {
+                .message =
+                    StockDirectory{
+                        .header = read_header(bytes),
+                        .stock = read_stock(bytes, 11),
+                        .market_category = static_cast<char>(byte_at(bytes, 19)),
+                        .financial_status_indicator = static_cast<char>(byte_at(bytes, 20)),
+                        .round_lot_size = read_u32(bytes, 21),
+                        .round_lots_only = static_cast<char>(byte_at(bytes, 25)) == 'Y',
                     },
             };
         }
