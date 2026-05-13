@@ -44,6 +44,30 @@ void test_replay_add_order_routes_to_symbol_book() {
     expect(book->order_status(100)->quantity == 50, "add order stores quantity");
 }
 
+void test_replay_add_order_rests_without_matching() {
+    flux::MatchingEngine engine;
+    auto& book = engine.book_for("AAPL");
+    book.add_resting_order({.id = 99, .side = flux::Side::Sell, .price = 18'0000, .quantity = 50});
+
+    flux::itch::ReplayHandler replay{engine};
+    const auto result = replay.apply(
+        flux::itch::AddOrder{
+            .header = header(),
+            .order_id = 100,
+            .side = flux::Side::Buy,
+            .quantity = 50,
+            .stock = "AAPL",
+            .price = 19'0000,
+        }
+    );
+
+    expect(result.action == flux::itch::ReplayAction::Added, "replay add returns Added");
+    expect(book.order_status(99).has_value(), "replay add does not match existing crossed ask");
+    expect(book.order_status(100).has_value(), "replay add rests incoming crossed bid");
+    expect(book.best_bid() == std::optional<flux::Price>{19'0000}, "crossed replay bid rests on book");
+    expect(book.best_ask() == std::optional<flux::Price>{18'0000}, "crossed replay ask remains on book");
+}
+
 void test_replay_execute_reduces_quantity() {
     flux::MatchingEngine engine;
     flux::itch::ReplayHandler replay{engine};
@@ -350,6 +374,7 @@ void test_replay_apply_all_reports_summary() {
 
 int main() {
     test_replay_add_order_routes_to_symbol_book();
+    test_replay_add_order_rests_without_matching();
     test_replay_execute_reduces_quantity();
     test_replay_executed_with_price_reduces_quantity();
     test_replay_cancel_reduces_quantity();

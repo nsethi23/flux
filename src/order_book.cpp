@@ -82,6 +82,22 @@ AddOrderResult OrderBook::add_market_order(Order order) {
     return result;
 }
 
+AddOrderResult OrderBook::add_resting_order(Order order) {
+    if (order.quantity == 0) {
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::ZeroQuantity};
+    }
+
+    if (orders_by_id_.contains(order.id)) {
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
+    }
+
+    const TopOfBook before = listener_ != nullptr ? top_of_book() : TopOfBook{};
+    rest_order(order);
+    notify_top_if_changed(before);
+
+    return {.accepted = true, .remaining_quantity = order.quantity};
+}
+
 void OrderBook::rest_order(Order order) {
     if (order.side == Side::Buy) {
         auto& fifo = bids_[order.price].fifo_order_ids;

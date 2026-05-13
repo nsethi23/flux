@@ -34,6 +34,7 @@ struct ReplaySummary {
     std::size_t ignored{};
     std::size_t rejected{};
     std::size_t unknown_orders{};
+    std::size_t skipped_unknown_messages{};
 };
 
 class ReplayHandler {

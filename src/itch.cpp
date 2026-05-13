@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -243,8 +244,11 @@ ParseResult parse_message(std::span<const std::byte> bytes) {
     }
 }
 
-FeedParseResult parse_feed(std::span<const std::byte> bytes) {
-    FeedParseResult result;
+FeedStreamResult parse_feed(
+    std::span<const std::byte> bytes,
+    const std::function<void(const FeedMessage&)>& on_message
+) {
+    FeedStreamResult result;
     std::size_t offset = 0;
 
     while (offset < bytes.size()) {
@@ -266,21 +270,45 @@ FeedParseResult parse_feed(std::span<const std::byte> bytes) {
         const auto message_bytes = bytes.subspan(offset, message_size);
         auto parsed = parse_message(message_bytes);
         if (!parsed.message.has_value()) {
+            if (parsed.error == ParseError::UnknownMessageType) {
+                ++result.skipped_unknown_messages;
+                offset += message_size;
+                continue;
+            }
+
             result.error = FeedError::MessageParseError;
             result.error_offset = offset;
             result.parse_error = parsed.error;
             return result;
         }
 
-        result.messages.push_back(
+        on_message(
             {
                 .offset = offset,
                 .message = *parsed.message,
             }
         );
+        ++result.parsed_messages;
         offset += message_size;
     }
 
+    return result;
+}
+
+FeedParseResult parse_feed(std::span<const std::byte> bytes) {
+    FeedParseResult result;
+
+    const auto stream_result = parse_feed(
+        bytes,
+        [&result](const FeedMessage& message) {
+            result.messages.push_back(message);
+        }
+    );
+
+    result.error = stream_result.error;
+    result.error_offset = stream_result.error_offset;
+    result.parse_error = stream_result.parse_error;
+    result.skipped_unknown_messages = stream_result.skipped_unknown_messages;
     return result;
 }
 

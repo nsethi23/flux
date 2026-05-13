@@ -3,9 +3,9 @@
 #include "flux/matching_engine.hpp"
 
 #include <cstddef>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <iterator>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -44,15 +44,14 @@ std::optional<std::vector<std::byte>> read_file(const char* path) {
         return std::nullopt;
     }
 
-    std::vector<char> chars(
-        (std::istreambuf_iterator<char>(file)),
-        std::istreambuf_iterator<char>()
-    );
+    const auto size = std::filesystem::file_size(path);
+    std::vector<std::byte> bytes(static_cast<std::size_t>(size));
 
-    std::vector<std::byte> bytes;
-    bytes.reserve(chars.size());
-    for (const char value : chars) {
-        bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(value)));
+    if (!bytes.empty()) {
+        file.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        if (!file) {
+            return std::nullopt;
+        }
     }
 
     return bytes;
@@ -76,7 +75,45 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const auto parsed = flux::itch::parse_feed(*bytes);
+    flux::MatchingEngine engine;
+    flux::itch::ReplayHandler replay{engine};
+    flux::itch::ReplaySummary summary;
+
+    const auto parsed = flux::itch::parse_feed(
+        *bytes,
+        [&replay, &summary](const flux::itch::FeedMessage& feed_message) {
+            const auto result = replay.apply(feed_message.message);
+
+            switch (result.action) {
+                case flux::itch::ReplayAction::Added:
+                    ++summary.added;
+                    break;
+                case flux::itch::ReplayAction::Executed:
+                    ++summary.executed;
+                    break;
+                case flux::itch::ReplayAction::Canceled:
+                    ++summary.canceled;
+                    break;
+                case flux::itch::ReplayAction::Deleted:
+                    ++summary.deleted;
+                    break;
+                case flux::itch::ReplayAction::Replaced:
+                    ++summary.replaced;
+                    break;
+                case flux::itch::ReplayAction::Ignored:
+                    ++summary.ignored;
+                    break;
+                case flux::itch::ReplayAction::Rejected:
+                    ++summary.rejected;
+                    break;
+                case flux::itch::ReplayAction::UnknownOrder:
+                    ++summary.unknown_orders;
+                    break;
+            }
+        }
+    );
+    summary.skipped_unknown_messages = parsed.skipped_unknown_messages;
+
     if (parsed.error.has_value()) {
         std::cerr << "Feed parse failed at offset " << parsed.error_offset << ": "
                   << to_string(*parsed.error);
@@ -86,18 +123,16 @@ int main(int argc, char** argv) {
         }
 
         std::cerr << '\n';
-        std::cerr << "Messages parsed before failure: " << parsed.messages.size() << '\n';
+        std::cerr << "Messages parsed before failure: " << parsed.parsed_messages << '\n';
+        std::cerr << "Unknown messages skipped before failure: " << parsed.skipped_unknown_messages << '\n';
         return 1;
     }
-
-    flux::MatchingEngine engine;
-    flux::itch::ReplayHandler replay{engine};
-    const auto summary = replay.apply_all(parsed.messages);
 
     std::cout << "Flux ITCH replay\n";
     std::cout << "File: " << argv[1] << '\n';
     std::cout << "Bytes: " << bytes->size() << '\n';
-    std::cout << "Messages parsed: " << parsed.messages.size() << '\n';
+    std::cout << "Messages parsed: " << parsed.parsed_messages << '\n';
+    std::cout << "Unknown messages skipped: " << parsed.skipped_unknown_messages << '\n';
     std::cout << "Symbols: " << engine.symbol_count() << '\n';
     std::cout << '\n';
     std::cout << "Replay summary\n";
@@ -109,6 +144,7 @@ int main(int argc, char** argv) {
     std::cout << "  Ignored: " << summary.ignored << '\n';
     std::cout << "  Rejected: " << summary.rejected << '\n';
     std::cout << "  Unknown orders: " << summary.unknown_orders << '\n';
+    std::cout << "  Unknown message types skipped: " << summary.skipped_unknown_messages << '\n';
 
     return 0;
 }

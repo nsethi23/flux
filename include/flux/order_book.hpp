@@ -60,6 +60,7 @@ public:
 
     AddOrderResult add_limit_order(Order order);
     AddOrderResult add_market_order(Order order);
+    AddOrderResult add_resting_order(Order order);
     bool cancel_order(OrderId order_id);
     AddOrderResult replace_order(OrderId existing_order_id, Order replacement);
     bool reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce);

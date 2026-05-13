@@ -45,19 +45,19 @@ Benchmarks currently cover core order-book operations plus ITCH parsing and repl
 Sample release run on this development machine:
 
 ```text
-add resting limit           min    65.27 p50    84.24 p99    95.46 p99.9    95.46 max    95.46 ns/op
-cancel resting order        min    64.19 p50    69.76 p99    85.75 p99.9    85.75 max    85.75 ns/op
-limit match                 min    92.27 p50    98.88 p99   112.11 p99.9   112.11 max   112.11 ns/op
-market match                min    86.81 p50    89.34 p99    90.64 p99.9    90.64 max    90.64 ns/op
-mixed order flow            min    59.55 p50    59.92 p99    62.60 p99.9    62.60 max    62.60 ns/op
-ITCH parse message          min     6.50 p50     6.52 p99     7.25 p99.9     7.25 max     7.25 ns/op
-ITCH parse feed             min    18.84 p50    19.17 p99    20.77 p99.9    20.77 max    20.77 ns/op
-ITCH replay feed            min    88.33 p50    92.46 p99   100.56 p99.9   100.56 max   100.56 ns/op
+add resting limit           min    69.73 p50    74.91 p99    97.36 p99.9    97.36 max    97.36 ns/op
+cancel resting order        min    26.35 p50    27.21 p99    28.52 p99.9    28.52 max    28.52 ns/op
+limit match                 min    52.91 p50    54.22 p99    75.28 p99.9    75.28 max    75.28 ns/op
+market match                min    54.01 p50    55.78 p99    97.28 p99.9    97.28 max    97.28 ns/op
+mixed order flow            min    57.96 p50    60.77 p99    63.90 p99.9    63.90 max    63.90 ns/op
+ITCH parse message          min     6.77 p50     6.93 p99    10.52 p99.9    10.52 max    10.52 ns/op
+ITCH parse feed             min     8.99 p50     9.70 p99    16.77 p99.9    16.77 max    16.77 ns/op
+ITCH replay feed            min    91.39 p50    95.76 p99   114.33 p99.9   114.33 max   114.33 ns/op
 ```
 
 ## Replay ITCH
 
-`flux_replay` reads a binary ITCH file containing 2-byte big-endian length-prefixed messages, parses it, and replays supported messages into the matching engine:
+`flux_replay` reads a binary ITCH file containing 2-byte big-endian length-prefixed messages, parses it, and replays supported messages into the matching engine. Unsupported message types are skipped and counted.
 
 ```sh
 ./build/flux_replay path/to/feed.itch

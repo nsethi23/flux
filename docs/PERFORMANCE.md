@@ -38,6 +38,7 @@ That means the project does not yet satisfy "no dynamic allocation in the hot pa
 4. Replace `std::map` with a price ladder or sparse indexed structure where the tick range is known.
 5. Add allocation counters to benchmarks.
 6. Add realistic mixed workloads instead of isolated single-operation loops.
+7. Replace `std::string` in ITCH message structs with fixed-width symbol/MPID fields.
 
 ## Benchmarking
 
@@ -54,6 +55,14 @@ For local CPU-specific benchmark builds:
 ```sh
 cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DFLUX_ENABLE_NATIVE_ARCH=ON
 cmake --build build-release
+```
+
+For sanitizer builds:
+
+```sh
+cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=Debug -DFLUX_ENABLE_SANITIZERS=ON
+cmake --build build-sanitize
+ctest --test-dir build-sanitize --output-on-failure
 ```
 
 The current benchmark reports min, p50, p99, p99.9, and max nanoseconds per operation over repeated samples. Treat the numbers as comparative signals, not final production claims.

@@ -10,6 +10,7 @@ project(
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(FLUX_ENABLE_NATIVE_ARCH "Build with -march=native for local benchmarking" OFF)
+option(FLUX_ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 include(CTest)
 
@@ -82,5 +83,24 @@ else()
         target_compile_options(flux_order_book_tests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(flux_itch_tests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(flux_itch_replay_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endif()
+
+if(FLUX_ENABLE_SANITIZERS AND NOT MSVC)
+    set(FLUX_SANITIZER_FLAGS -fsanitize=address,undefined -fno-omit-frame-pointer)
+
+    target_compile_options(flux_core PRIVATE ${FLUX_SANITIZER_FLAGS})
+    target_link_options(flux_core PRIVATE ${FLUX_SANITIZER_FLAGS})
+
+    foreach(target flux flux_bench flux_replay)
+        target_compile_options(${target} PRIVATE ${FLUX_SANITIZER_FLAGS})
+        target_link_options(${target} PRIVATE ${FLUX_SANITIZER_FLAGS})
+    endforeach()
+
+    if(BUILD_TESTING)
+        foreach(target flux_order_book_tests flux_itch_tests flux_itch_replay_tests)
+            target_compile_options(${target} PRIVATE ${FLUX_SANITIZER_FLAGS})
+            target_link_options(${target} PRIVATE ${FLUX_SANITIZER_FLAGS})
+        endforeach()
     endif()
 endif()

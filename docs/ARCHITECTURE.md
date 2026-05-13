@@ -93,14 +93,16 @@ All integer fields are decoded as big-endian values. Timestamps are 6-byte integ
 N-byte ITCH message payload
 ```
 
+The streaming `parse_feed` overload invokes a callback for each supported message instead of materializing the whole feed as a vector. Unknown message types are skipped and counted so real ITCH files with unsupported administrative messages can still replay.
+
 ## ITCH Replay
 
 `itch::ReplayHandler` applies parsed ITCH messages to a `MatchingEngine`.
 
 Mapping:
 
-- `A` Add Order -> add resting limit order to the symbol's book.
-- `F` Add Order with MPID Attribution -> add resting limit order to the symbol's book.
+- `A` Add Order -> rest order directly on the symbol's book.
+- `F` Add Order with MPID Attribution -> rest order directly on the symbol's book.
 - `E` Order Executed -> reduce the resting order by executed quantity.
 - `C` Order Executed With Price -> reduce the resting order by executed quantity.
 - `X` Order Cancel -> reduce the resting order by canceled quantity.
@@ -110,4 +112,4 @@ Mapping:
 
 Execution, cancel, and delete messages identify orders by ID but do not carry the stock symbol. The replay handler therefore keeps an `order_id -> symbol` map after Add Order messages.
 
-Replay mode is separate from simulated matching mode. In replay mode, the historical feed is the source of truth for executions; the local engine mirrors feed state instead of deciding matches itself.
+Replay mode is separate from simulated matching mode. In replay mode, the historical feed is the source of truth for executions; Add Order messages rest directly and do not run local matching. This avoids phantom trades when replaying a real exchange feed.

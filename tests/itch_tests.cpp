@@ -305,6 +305,44 @@ void test_parse_feed_with_multiple_messages() {
     expect(result.messages[0].offset == 2, "first feed message offset is after length prefix");
 }
 
+void test_parse_feed_skips_unknown_message_type() {
+    std::vector<std::byte> unknown_message;
+    unknown_message.push_back(static_cast<std::byte>('S'));
+    push_padded(unknown_message, "", 11);
+
+    std::vector<std::byte> feed;
+    append_framed_message(feed, unknown_message);
+    append_framed_message(feed, add_order_message(123, 'B', 100, "AAPL", 18'7500));
+
+    const auto result = flux::itch::parse_feed(feed);
+
+    expect(!result.error.has_value(), "unknown feed message type does not fail parse");
+    expect(result.skipped_unknown_messages == 1, "unknown feed message type is counted");
+    expect(result.messages.size() == 1, "known message after unknown message is parsed");
+    expect(
+        std::holds_alternative<flux::itch::AddOrder>(result.messages[0].message),
+        "known message after unknown message keeps variant type"
+    );
+}
+
+void test_streaming_parse_feed_invokes_callback_without_storing_all_messages() {
+    std::vector<std::byte> feed;
+    append_framed_message(feed, add_order_message(123, 'B', 100, "AAPL", 18'7500));
+    append_framed_message(feed, cancel_message(123, 25));
+
+    std::size_t callback_count = 0;
+    const auto result = flux::itch::parse_feed(
+        feed,
+        [&callback_count](const flux::itch::FeedMessage& /*message*/) {
+            ++callback_count;
+        }
+    );
+
+    expect(!result.error.has_value(), "streaming feed parse succeeds");
+    expect(result.parsed_messages == 2, "streaming feed parse counts parsed messages");
+    expect(callback_count == 2, "streaming feed parse invokes callback for each message");
+}
+
 void test_parse_feed_rejects_truncated_length() {
     const std::vector<std::byte> feed{static_cast<std::byte>(0x00)};
 
@@ -353,6 +391,8 @@ int main() {
     test_reject_wrong_size();
     test_reject_invalid_side();
     test_parse_feed_with_multiple_messages();
+    test_parse_feed_skips_unknown_message_type();
+    test_streaming_parse_feed_invokes_callback_without_storing_all_messages();
     test_parse_feed_rejects_truncated_length();
     test_parse_feed_rejects_truncated_message();
     test_parse_feed_reports_message_parse_error();

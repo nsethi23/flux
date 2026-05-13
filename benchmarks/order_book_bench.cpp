@@ -48,14 +48,16 @@ double percentile(const std::vector<double>& sorted_samples, double percentile_v
     return sorted_samples[index];
 }
 
-template <typename Func>
-BenchmarkResult run_benchmark(std::string_view name, int operations, Func func) {
+template <typename SetupFunc, typename Func>
+BenchmarkResult run_benchmark(std::string_view name, int operations, SetupFunc setup, Func func) {
     std::vector<double> samples;
     samples.reserve(kSamples);
 
+    setup();
     func();
 
     for (int sample = 0; sample < kSamples; ++sample) {
+        setup();
         const auto start = Clock::now();
         func();
         const auto end = Clock::now();
@@ -74,6 +76,11 @@ BenchmarkResult run_benchmark(std::string_view name, int operations, Func func) 
         .p999_ns_per_op = percentile(samples, 99.9),
         .max_ns_per_op = samples.back(),
     };
+}
+
+template <typename Func>
+BenchmarkResult run_benchmark(std::string_view name, int operations, Func func) {
+    return run_benchmark(name, operations, [] {}, func);
 }
 
 void push_u16(std::vector<std::byte>& bytes, std::uint16_t value) {
@@ -156,8 +163,10 @@ BenchmarkResult bench_add_resting_limit_orders() {
 }
 
 BenchmarkResult bench_cancel_orders() {
-    return run_benchmark("cancel resting order", kIterations, [] {
-        flux::OrderBook book;
+    flux::OrderBook book;
+
+    auto setup = [&book] {
+        book = flux::OrderBook(static_cast<std::size_t>(kIterations));
         for (int i = 0; i < kIterations; ++i) {
             book.add_limit_order(
                 {
@@ -168,7 +177,9 @@ BenchmarkResult bench_cancel_orders() {
                 }
             );
         }
+    };
 
+    return run_benchmark("cancel resting order", kIterations, setup, [&book] {
         for (int i = 0; i < kIterations; ++i) {
             book.cancel_order(static_cast<flux::OrderId>(i + 1));
         }
@@ -176,8 +187,10 @@ BenchmarkResult bench_cancel_orders() {
 }
 
 BenchmarkResult bench_aggressive_limit_matches() {
-    return run_benchmark("limit match", kIterations, [] {
-        flux::OrderBook book;
+    flux::OrderBook book;
+
+    auto setup = [&book] {
+        book = flux::OrderBook(static_cast<std::size_t>(kIterations));
         for (int i = 0; i < kIterations; ++i) {
             book.add_limit_order(
                 {
@@ -188,7 +201,9 @@ BenchmarkResult bench_aggressive_limit_matches() {
                 }
             );
         }
+    };
 
+    return run_benchmark("limit match", kIterations, setup, [&book] {
         for (int i = 0; i < kIterations; ++i) {
             book.add_limit_order(
                 {
@@ -203,8 +218,10 @@ BenchmarkResult bench_aggressive_limit_matches() {
 }
 
 BenchmarkResult bench_market_order_matches() {
-    return run_benchmark("market match", kIterations, [] {
-        flux::OrderBook book;
+    flux::OrderBook book;
+
+    auto setup = [&book] {
+        book = flux::OrderBook(static_cast<std::size_t>(kIterations));
         for (int i = 0; i < kIterations; ++i) {
             book.add_limit_order(
                 {
@@ -215,7 +232,9 @@ BenchmarkResult bench_market_order_matches() {
                 }
             );
         }
+    };
 
+    return run_benchmark("market match", kIterations, setup, [&book] {
         for (int i = 0; i < kIterations; ++i) {
             book.add_market_order(
                 {
@@ -289,8 +308,14 @@ BenchmarkResult bench_parse_itch_feed() {
     const auto feed = make_feed(kIterations);
 
     return run_benchmark("ITCH parse feed", kIterations, [&feed] {
-        const auto parsed = flux::itch::parse_feed(feed);
-        if (parsed.error.has_value()) {
+        std::size_t parsed_count = 0;
+        const auto parsed = flux::itch::parse_feed(
+            feed,
+            [&parsed_count](const flux::itch::FeedMessage& /*message*/) {
+                ++parsed_count;
+            }
+        );
+        if (parsed.error.has_value() || parsed_count != static_cast<std::size_t>(kIterations)) {
             std::abort();
         }
     });
@@ -298,12 +323,22 @@ BenchmarkResult bench_parse_itch_feed() {
 
 BenchmarkResult bench_replay_itch_feed() {
     const auto feed = make_feed(kIterations);
-    const auto parsed = flux::itch::parse_feed(feed);
+    std::vector<flux::itch::FeedMessage> messages;
+    messages.reserve(kIterations);
+    const auto parsed = flux::itch::parse_feed(
+        feed,
+        [&messages](const flux::itch::FeedMessage& message) {
+            messages.push_back(message);
+        }
+    );
+    if (parsed.error.has_value()) {
+        std::abort();
+    }
 
-    return run_benchmark("ITCH replay feed", kIterations, [&parsed] {
+    return run_benchmark("ITCH replay feed", kIterations, [&messages] {
         flux::MatchingEngine engine;
         flux::itch::ReplayHandler replay{engine};
-        const auto summary = replay.apply_all(parsed.messages);
+        const auto summary = replay.apply_all(messages);
         if (summary.added != static_cast<std::size_t>(kIterations)) {
             std::abort();
         }

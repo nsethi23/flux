@@ -73,7 +73,7 @@ ReplaySummary ReplayHandler::apply_all(std::span<const FeedMessage> messages) {
 
 ReplayResult ReplayHandler::apply_add_order(const AddOrder& message) {
     auto& book = engine_.book_for(message.stock);
-    const auto result = book.add_limit_order(
+    const auto result = book.add_resting_order(
         {
             .id = message.order_id,
             .side = message.side,
@@ -86,9 +86,7 @@ ReplayResult ReplayHandler::apply_add_order(const AddOrder& message) {
         return {.action = ReplayAction::Rejected};
     }
 
-    if (result.remaining_quantity > 0) {
-        symbol_by_order_id_[message.order_id] = message.stock;
-    }
+    symbol_by_order_id_[message.order_id] = message.stock;
 
     return {.action = ReplayAction::Added};
 }

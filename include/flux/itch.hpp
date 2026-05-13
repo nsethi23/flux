@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -123,9 +124,22 @@ struct FeedParseResult {
     std::optional<FeedError> error;
     std::size_t error_offset{};
     std::optional<ParseError> parse_error;
+    std::size_t skipped_unknown_messages{};
+};
+
+struct FeedStreamResult {
+    std::size_t parsed_messages{};
+    std::size_t skipped_unknown_messages{};
+    std::optional<FeedError> error;
+    std::size_t error_offset{};
+    std::optional<ParseError> parse_error;
 };
 
 ParseResult parse_message(std::span<const std::byte> bytes);
+FeedStreamResult parse_feed(
+    std::span<const std::byte> bytes,
+    const std::function<void(const FeedMessage&)>& on_message
+);
 FeedParseResult parse_feed(std::span<const std::byte> bytes);
 
 }  // namespace flux::itch
