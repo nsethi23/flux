@@ -28,6 +28,8 @@ The current implementation still allocates dynamically through:
 
 That means the project does not yet satisfy "no dynamic allocation in the hot path." It has the correct behavior and measurement scaffolding needed before replacing these pieces.
 
+`std::list` is used because stable iterators make O(1) cancel straightforward. This is not cache-optimal: each node can live in a different heap allocation. The intended production direction is a custom pool-backed intrusive queue that preserves O(1) cancel while improving locality and allocation behavior.
+
 ## Likely Optimization Path
 
 1. Reserve expected order-map capacity up front.
@@ -47,7 +49,14 @@ cmake --build build-release
 ./build-release/flux_bench
 ```
 
-The current benchmark reports min, median, and max nanoseconds per operation over repeated samples. Treat the numbers as comparative signals, not final production claims.
+For local CPU-specific benchmark builds:
+
+```sh
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DFLUX_ENABLE_NATIVE_ARCH=ON
+cmake --build build-release
+```
+
+The current benchmark reports min, p50, p99, p99.9, and max nanoseconds per operation over repeated samples. Treat the numbers as comparative signals, not final production claims.
 
 Current benchmark categories:
 

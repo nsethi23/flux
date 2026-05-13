@@ -13,11 +13,18 @@ enum class Side {
     Sell,
 };
 
+enum class TimeInForce {
+    GoodTillCancel,
+    ImmediateOrCancel,
+    FillOrKill,
+};
+
 struct Order {
     OrderId id{};
     Side side{};
     Price price{};
     Quantity quantity{};
+    TimeInForce time_in_force{TimeInForce::GoodTillCancel};
 };
 
 }  // namespace flux

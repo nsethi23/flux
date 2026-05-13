@@ -6,8 +6,10 @@ Flux is a C++20 order book and matching-engine project built for quant developer
 
 - Price-time priority matching.
 - Limit and market orders.
+- Good-till-cancel, IOC, and FOK behavior.
 - Cancel, reduce, and replace order operations.
 - O(1) cancel after order-ID lookup using stored FIFO iterators.
+- Trade and top-of-book listener callbacks.
 - Multi-symbol matching engine wrapper.
 - NASDAQ ITCH-style binary parser and replay path.
 - CMake, CTest, CI, formatting config, docs, and benchmarks.
@@ -38,19 +40,19 @@ cmake --build build-release
 ./build-release/flux_bench
 ```
 
-Benchmarks currently cover core order-book operations plus ITCH parsing and replay. Results are reported as min/median/max nanoseconds per operation over repeated samples.
+Benchmarks currently cover core order-book operations plus ITCH parsing and replay. Results are reported as min/p50/p99/p99.9/max nanoseconds per operation over repeated samples.
 
 Sample release run on this development machine:
 
 ```text
-add resting limit           min    68.46 median    74.33 max    76.15 ns/op
-cancel resting order        min    59.04 median    60.00 max    62.33 ns/op
-limit match                 min    82.69 median    84.74 max    88.24 ns/op
-market match                min    84.99 median    86.16 max   101.43 ns/op
-mixed order flow            min    57.74 median    60.15 max    69.30 ns/op
-ITCH parse message          min     6.18 median     6.61 max     6.75 ns/op
-ITCH parse feed             min    17.08 median    20.39 max    31.38 ns/op
-ITCH replay feed            min    95.46 median    97.60 max   108.62 ns/op
+add resting limit           min    65.27 p50    84.24 p99    95.46 p99.9    95.46 max    95.46 ns/op
+cancel resting order        min    64.19 p50    69.76 p99    85.75 p99.9    85.75 max    85.75 ns/op
+limit match                 min    92.27 p50    98.88 p99   112.11 p99.9   112.11 max   112.11 ns/op
+market match                min    86.81 p50    89.34 p99    90.64 p99.9    90.64 max    90.64 ns/op
+mixed order flow            min    59.55 p50    59.92 p99    62.60 p99.9    62.60 max    62.60 ns/op
+ITCH parse message          min     6.50 p50     6.52 p99     7.25 p99.9     7.25 max     7.25 ns/op
+ITCH parse feed             min    18.84 p50    19.17 p99    20.77 p99.9    20.77 max    20.77 ns/op
+ITCH replay feed            min    88.33 p50    92.46 p99   100.56 p99.9   100.56 max   100.56 ns/op
 ```
 
 ## Replay ITCH

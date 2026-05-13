@@ -9,6 +9,8 @@ project(
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(FLUX_ENABLE_NATIVE_ARCH "Build with -march=native for local benchmarking" OFF)
+
 include(CTest)
 
 add_library(flux_core
@@ -67,6 +69,15 @@ else()
     target_compile_options(flux PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(flux_bench PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(flux_replay PRIVATE -Wall -Wextra -Wpedantic)
+
+    target_compile_options(flux_core PRIVATE $<$<CONFIG:Release>:-O3>)
+    target_compile_options(flux_bench PRIVATE $<$<CONFIG:Release>:-O3>)
+
+    if(FLUX_ENABLE_NATIVE_ARCH)
+        target_compile_options(flux_core PRIVATE $<$<CONFIG:Release>:-march=native>)
+        target_compile_options(flux_bench PRIVATE $<$<CONFIG:Release>:-march=native>)
+    endif()
+
     if(BUILD_TESTING)
         target_compile_options(flux_order_book_tests PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(flux_itch_tests PRIVATE -Wall -Wextra -Wpedantic)

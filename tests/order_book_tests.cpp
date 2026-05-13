@@ -11,6 +11,19 @@ namespace {
 
 int failures = 0;
 
+struct RecordingListener : flux::BookListener {
+    std::vector<flux::Trade> trades;
+    std::vector<flux::TopOfBook> top_changes;
+
+    void on_trade(const flux::Trade& trade) override {
+        trades.push_back(trade);
+    }
+
+    void on_top_of_book_change(const flux::TopOfBook& top_of_book) override {
+        top_changes.push_back(top_of_book);
+    }
+};
+
 void expect(bool condition, std::string_view message) {
     if (!condition) {
         std::cerr << "FAIL: " << message << '\n';
@@ -150,6 +163,74 @@ void test_buy_limit_order_rests_unfilled_remainder() {
     expect(book.order_count() == 1, "unfilled buy remainder rests on book");
     expect(book.best_bid() == std::optional<flux::Price>{10'000}, "buy remainder becomes best bid");
     expect(book.order_ids_at_price(flux::Side::Buy, 10'000) == expected, "buy remainder uses incoming id");
+}
+
+void test_ioc_limit_order_does_not_rest_remainder() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+
+    const auto result = book.add_limit_order(
+        {
+            .id = 2,
+            .side = flux::Side::Buy,
+            .price = 10'000,
+            .quantity = 100,
+            .time_in_force = flux::TimeInForce::ImmediateOrCancel,
+        }
+    );
+
+    expect(result.accepted, "IOC limit order is accepted");
+    expect(result.remaining_quantity == 60, "IOC reports unfilled remainder");
+    expect(result.trades.size() == 1, "IOC trades available liquidity");
+    expect(book.order_count() == 0, "IOC remainder does not rest on book");
+    expect(!book.best_bid().has_value(), "IOC remainder does not create bid");
+}
+
+void test_fok_limit_order_rejects_when_not_fully_fillable() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+
+    const auto result = book.add_limit_order(
+        {
+            .id = 2,
+            .side = flux::Side::Buy,
+            .price = 10'000,
+            .quantity = 100,
+            .time_in_force = flux::TimeInForce::FillOrKill,
+        }
+    );
+
+    expect(!result.accepted, "FOK rejects when full quantity is unavailable");
+    expect(
+        result.reject_reason == flux::AddOrderRejectReason::FillOrKillNotFilled,
+        "FOK reject reason is reported"
+    );
+    expect(book.order_count() == 1, "failed FOK does not mutate book");
+    expect(book.order_status(1)->quantity == 40, "failed FOK leaves resting order unchanged");
+}
+
+void test_fok_limit_order_fills_when_enough_liquidity_exists() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 40});
+    book.add_limit_order({.id = 2, .side = flux::Side::Sell, .price = 10'100, .quantity = 60});
+
+    const auto result = book.add_limit_order(
+        {
+            .id = 3,
+            .side = flux::Side::Buy,
+            .price = 10'100,
+            .quantity = 100,
+            .time_in_force = flux::TimeInForce::FillOrKill,
+        }
+    );
+
+    expect(result.accepted, "FOK fills when full quantity is available");
+    expect(result.remaining_quantity == 0, "filled FOK has no remainder");
+    expect(result.trades.size() == 2, "FOK can fill across price levels");
+    expect(book.order_count() == 0, "filled FOK consumes resting liquidity and does not rest");
 }
 
 void test_sell_limit_order_matches_best_bid_first() {
@@ -423,10 +504,12 @@ void test_replace_order_resets_priority() {
 
     const std::vector<flux::OrderId> expected{2, 3};
 
-    expect(
-        book.replace_order(1, {.id = 3, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}),
-        "replace existing order succeeds"
+    const auto result = book.replace_order(
+        1,
+        {.id = 3, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}
     );
+
+    expect(result.accepted, "replace existing order succeeds");
     expect(book.order_ids_at_price(flux::Side::Buy, 10'000) == expected, "replacement loses old FIFO priority");
     expect(!book.order_status(1).has_value(), "replaced order id is removed");
     expect(book.order_status(3)->quantity == 50, "replacement order is inserted");
@@ -435,10 +518,12 @@ void test_replace_order_resets_priority() {
 void test_replace_unknown_order_returns_false() {
     flux::OrderBook book;
 
-    expect(
-        !book.replace_order(42, {.id = 43, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}),
-        "replace unknown order returns false"
+    const auto result = book.replace_order(
+        42,
+        {.id = 43, .side = flux::Side::Buy, .price = 10'000, .quantity = 50}
     );
+
+    expect(!result.accepted, "replace unknown order returns false");
     expect(book.order_count() == 0, "replace unknown order does not change book");
 }
 
@@ -448,12 +533,31 @@ void test_replace_with_duplicate_replacement_id_returns_false() {
     book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
     book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'100, .quantity = 100});
 
-    expect(
-        !book.replace_order(1, {.id = 2, .side = flux::Side::Sell, .price = 10'200, .quantity = 50}),
-        "replace with duplicate replacement id returns false"
+    const auto result = book.replace_order(
+        1,
+        {.id = 2, .side = flux::Side::Sell, .price = 10'200, .quantity = 50}
     );
+
+    expect(!result.accepted, "replace with duplicate replacement id returns false");
     expect(book.order_status(1).has_value(), "failed replace keeps original order");
     expect(book.order_status(2).has_value(), "failed replace keeps conflicting order");
+}
+
+void test_replace_order_returns_trades_when_marketable() {
+    flux::OrderBook book;
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 9'900, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+
+    const auto result = book.replace_order(
+        1,
+        {.id = 3, .side = flux::Side::Buy, .price = 10'000, .quantity = 100}
+    );
+
+    expect(result.accepted, "marketable replace succeeds");
+    expect(result.trades.size() == 1, "marketable replace returns trade");
+    expect(result.trades[0].resting_order_id == 2, "marketable replace trades against resting ask");
+    expect(book.order_count() == 0, "marketable replace removes filled orders");
 }
 
 void test_matching_engine_isolates_symbols() {
@@ -471,6 +575,35 @@ void test_matching_engine_isolates_symbols() {
     expect(engine.find_book("GOOG") == nullptr, "unknown symbol returns no book");
 }
 
+void test_listener_receives_trade_and_top_of_book_changes() {
+    flux::OrderBook book;
+    RecordingListener listener;
+    book.set_listener(&listener);
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Sell, .price = 10'000, .quantity = 100});
+    book.add_limit_order({.id = 2, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+
+    expect(listener.trades.size() == 1, "listener receives trade event");
+    expect(listener.trades[0].quantity == 100, "listener trade has matched quantity");
+    expect(listener.top_changes.size() == 2, "listener receives top-of-book changes");
+    expect(listener.top_changes[0].ask == std::optional<flux::Price>{10'000}, "listener sees initial ask");
+    expect(listener.top_changes[0].ask_quantity == 100, "listener sees initial ask quantity");
+    expect(!listener.top_changes[1].ask.has_value(), "listener sees ask removed after trade");
+}
+
+void test_listener_receives_top_of_book_quantity_change() {
+    flux::OrderBook book;
+    RecordingListener listener;
+    book.set_listener(&listener);
+
+    book.add_limit_order({.id = 1, .side = flux::Side::Buy, .price = 10'000, .quantity = 100});
+    book.reduce_order_quantity(1, 40);
+
+    expect(listener.top_changes.size() == 2, "listener receives quantity-only top-of-book change");
+    expect(listener.top_changes[1].bid == std::optional<flux::Price>{10'000}, "quantity change keeps bid price");
+    expect(listener.top_changes[1].bid_quantity == 60, "quantity change reports updated bid quantity");
+}
+
 }  // namespace
 
 int main() {
@@ -483,6 +616,9 @@ int main() {
     test_buy_limit_order_fully_matches_resting_sell();
     test_buy_limit_order_partially_fills_resting_sell();
     test_buy_limit_order_rests_unfilled_remainder();
+    test_ioc_limit_order_does_not_rest_remainder();
+    test_fok_limit_order_rejects_when_not_fully_fillable();
+    test_fok_limit_order_fills_when_enough_liquidity_exists();
     test_sell_limit_order_matches_best_bid_first();
     test_cancel_unknown_order_id_returns_false();
     test_cancel_removes_order_from_fifo_level();
@@ -505,7 +641,10 @@ int main() {
     test_replace_order_resets_priority();
     test_replace_unknown_order_returns_false();
     test_replace_with_duplicate_replacement_id_returns_false();
+    test_replace_order_returns_trades_when_marketable();
     test_matching_engine_isolates_symbols();
+    test_listener_receives_trade_and_top_of_book_changes();
+    test_listener_receives_top_of_book_quantity_change();
 
     if (failures != 0) {
         std::cerr << failures << " test failure(s)\n";

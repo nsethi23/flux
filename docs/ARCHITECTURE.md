@@ -26,7 +26,24 @@ Data structures:
 
 Each `OrderEntry` stores both the order and its iterator inside the price-level FIFO list. That makes cancellation O(1) after the ID lookup.
 
+The `std::list` choice is a deliberate correctness/performance tradeoff. It gives stable iterators and simple O(1) arbitrary cancel, but it has poor cache locality and per-node allocation. A production-oriented next step would replace it with a pool-backed intrusive queue.
+
+## Events
+
+`OrderBook` can publish events through `BookListener`:
+
+- `on_trade`
+- `on_top_of_book_change`
+
+Top-of-book events include best bid/ask prices and aggregate quantity at those best levels.
+
 ## Matching Rules
+
+Orders support three time-in-force policies:
+
+- `GoodTillCancel`: match immediately if marketable, then rest any remaining quantity.
+- `ImmediateOrCancel`: match immediately, then cancel any remaining quantity.
+- `FillOrKill`: execute only if the full quantity can fill immediately; otherwise reject without mutating the book.
 
 Limit buy:
 

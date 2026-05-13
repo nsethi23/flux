@@ -185,7 +185,7 @@ ReplayResult ReplayHandler::apply_order_replace(const OrderReplace& message) {
     }
 
     const std::string stock = symbol->second;
-    const bool replaced = book.replace_order(
+    const auto replaced = book.replace_order(
         message.original_order_id,
         {
             .id = message.new_order_id,
@@ -195,7 +195,7 @@ ReplayResult ReplayHandler::apply_order_replace(const OrderReplace& message) {
         }
     );
 
-    if (!replaced) {
+    if (!replaced.accepted) {
         return {.action = ReplayAction::Rejected};
     }
 

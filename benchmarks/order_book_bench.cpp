@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -17,22 +18,34 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-constexpr int kIterations = 100'000;
-constexpr int kSamples = 7;
+constexpr int kIterations = 10'000;
+constexpr int kSamples = 9;
 constexpr flux::Price kBasePrice = 10'000;
 
 struct BenchmarkResult {
     std::string_view name;
     double min_ns_per_op{};
-    double median_ns_per_op{};
+    double p50_ns_per_op{};
+    double p99_ns_per_op{};
+    double p999_ns_per_op{};
     double max_ns_per_op{};
 };
 
 void print_result(BenchmarkResult result) {
     std::cout << std::left << std::setw(28) << result.name << std::right << std::fixed
-              << std::setprecision(2) << "min " << std::setw(8) << result.min_ns_per_op
-              << " median " << std::setw(8) << result.median_ns_per_op << " max " << std::setw(8)
-              << result.max_ns_per_op << " ns/op\n";
+              << std::setprecision(2) << "min " << std::setw(8) << result.min_ns_per_op << " p50 "
+              << std::setw(8) << result.p50_ns_per_op << " p99 " << std::setw(8)
+              << result.p99_ns_per_op << " p99.9 " << std::setw(8) << result.p999_ns_per_op
+              << " max " << std::setw(8) << result.max_ns_per_op << " ns/op\n";
+}
+
+double percentile(const std::vector<double>& sorted_samples, double percentile_value) {
+    const auto rank = std::ceil((percentile_value / 100.0) * static_cast<double>(sorted_samples.size()));
+    const auto index = std::min<std::size_t>(
+        static_cast<std::size_t>(rank) - 1,
+        sorted_samples.size() - 1
+    );
+    return sorted_samples[index];
 }
 
 template <typename Func>
@@ -56,7 +69,9 @@ BenchmarkResult run_benchmark(std::string_view name, int operations, Func func) 
     return {
         .name = name,
         .min_ns_per_op = samples.front(),
-        .median_ns_per_op = samples[samples.size() / 2],
+        .p50_ns_per_op = percentile(samples, 50.0),
+        .p99_ns_per_op = percentile(samples, 99.0),
+        .p999_ns_per_op = percentile(samples, 99.9),
         .max_ns_per_op = samples.back(),
     };
 }

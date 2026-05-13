@@ -17,10 +17,26 @@ struct Trade {
     Quantity quantity{};
 };
 
+struct TopOfBook {
+    std::optional<Price> bid;
+    std::optional<Price> ask;
+    Quantity bid_quantity{};
+    Quantity ask_quantity{};
+};
+
+class BookListener {
+public:
+    virtual ~BookListener() = default;
+
+    virtual void on_trade(const Trade& trade) = 0;
+    virtual void on_top_of_book_change(const TopOfBook& top_of_book) = 0;
+};
+
 enum class AddOrderRejectReason {
     None,
     ZeroQuantity,
     DuplicateOrderId,
+    FillOrKillNotFilled,
 };
 
 struct AddOrderResult {
@@ -38,10 +54,14 @@ struct OrderStatus {
 
 class OrderBook {
 public:
+    explicit OrderBook(std::size_t order_capacity_hint = 0);
+
+    void set_listener(BookListener* listener);
+
     AddOrderResult add_limit_order(Order order);
     AddOrderResult add_market_order(Order order);
     bool cancel_order(OrderId order_id);
-    bool replace_order(OrderId existing_order_id, Order replacement);
+    AddOrderResult replace_order(OrderId existing_order_id, Order replacement);
     bool reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce);
 
     [[nodiscard]] std::optional<Price> best_bid() const;
@@ -64,10 +84,15 @@ private:
     void match_buy_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
     void match_sell_order(Order& incoming, std::vector<Trade>& trades, bool enforce_price_limit);
     void remove_from_level(Side side, Price price, std::list<OrderId>::iterator fifo_position);
+    [[nodiscard]] bool can_fully_fill(const Order& order) const;
+    [[nodiscard]] TopOfBook top_of_book() const;
+    void notify_trades(const std::vector<Trade>& trades);
+    void notify_top_if_changed(const TopOfBook& before);
 
     std::map<Price, PriceLevel, std::greater<Price>> bids_;
     std::map<Price, PriceLevel, std::less<Price>> asks_;
     std::unordered_map<OrderId, OrderEntry> orders_by_id_;
+    BookListener* listener_{};
 };
 
 }  // namespace flux

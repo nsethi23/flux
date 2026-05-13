@@ -6,6 +6,16 @@
 
 namespace flux {
 
+OrderBook::OrderBook(std::size_t order_capacity_hint) {
+    if (order_capacity_hint > 0) {
+        orders_by_id_.reserve(order_capacity_hint);
+    }
+}
+
+void OrderBook::set_listener(BookListener* listener) {
+    listener_ = listener;
+}
+
 AddOrderResult OrderBook::add_limit_order(Order order) {
     if (order.quantity == 0) {
         return {.accepted = false, .reject_reason = AddOrderRejectReason::ZeroQuantity};
@@ -15,15 +25,23 @@ AddOrderResult OrderBook::add_limit_order(Order order) {
         return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
     }
 
+    if (order.time_in_force == TimeInForce::FillOrKill && !can_fully_fill(order)) {
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::FillOrKillNotFilled};
+    }
+
+    const TopOfBook before = listener_ != nullptr ? top_of_book() : TopOfBook{};
+
     if (order.side == Side::Buy) {
         AddOrderResult result{.accepted = true};
         match_buy_order(order, result.trades, true);
         result.remaining_quantity = order.quantity;
 
-        if (order.quantity > 0) {
+        if (order.quantity > 0 && order.time_in_force == TimeInForce::GoodTillCancel) {
             rest_order(order);
         }
 
+        notify_trades(result.trades);
+        notify_top_if_changed(before);
         return result;
     }
 
@@ -31,10 +49,12 @@ AddOrderResult OrderBook::add_limit_order(Order order) {
     match_sell_order(order, result.trades, true);
     result.remaining_quantity = order.quantity;
 
-    if (order.quantity > 0) {
+    if (order.quantity > 0 && order.time_in_force == TimeInForce::GoodTillCancel) {
         rest_order(order);
     }
 
+    notify_trades(result.trades);
+    notify_top_if_changed(before);
     return result;
 }
 
@@ -47,6 +67,7 @@ AddOrderResult OrderBook::add_market_order(Order order) {
         return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
     }
 
+    const TopOfBook before = listener_ != nullptr ? top_of_book() : TopOfBook{};
     AddOrderResult result{.accepted = true};
 
     if (order.side == Side::Buy) {
@@ -56,6 +77,8 @@ AddOrderResult OrderBook::add_market_order(Order order) {
     }
 
     result.remaining_quantity = order.quantity;
+    notify_trades(result.trades);
+    notify_top_if_changed(before);
     return result;
 }
 
@@ -78,6 +101,7 @@ bool OrderBook::cancel_order(OrderId order_id) {
         return false;
     }
 
+    const TopOfBook before = listener_ != nullptr ? top_of_book() : TopOfBook{};
     const Side side = entry->second.order.side;
     const Price price = entry->second.order.price;
     const auto fifo_position = entry->second.fifo_position;
@@ -85,23 +109,24 @@ bool OrderBook::cancel_order(OrderId order_id) {
     remove_from_level(side, price, fifo_position);
     orders_by_id_.erase(entry);
 
+    notify_top_if_changed(before);
     return true;
 }
 
-bool OrderBook::replace_order(OrderId existing_order_id, Order replacement) {
+AddOrderResult OrderBook::replace_order(OrderId existing_order_id, Order replacement) {
     if (replacement.quantity == 0) {
-        return false;
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::ZeroQuantity};
     }
 
     if (replacement.id != existing_order_id && orders_by_id_.contains(replacement.id)) {
-        return false;
+        return {.accepted = false, .reject_reason = AddOrderRejectReason::DuplicateOrderId};
     }
 
     if (!cancel_order(existing_order_id)) {
-        return false;
+        return {.accepted = false};
     }
 
-    return add_limit_order(replacement).accepted;
+    return add_limit_order(replacement);
 }
 
 bool OrderBook::reduce_order_quantity(OrderId order_id, Quantity quantity_to_reduce) {
@@ -114,6 +139,8 @@ bool OrderBook::reduce_order_quantity(OrderId order_id, Quantity quantity_to_red
         return false;
     }
 
+    const TopOfBook before = listener_ != nullptr ? top_of_book() : TopOfBook{};
+
     if (quantity_to_reduce >= entry->second.order.quantity) {
         const Side side = entry->second.order.side;
         const Price price = entry->second.order.price;
@@ -121,10 +148,12 @@ bool OrderBook::reduce_order_quantity(OrderId order_id, Quantity quantity_to_red
 
         remove_from_level(side, price, fifo_position);
         orders_by_id_.erase(entry);
+        notify_top_if_changed(before);
         return true;
     }
 
     entry->second.order.quantity -= quantity_to_reduce;
+    notify_top_if_changed(before);
     return true;
 }
 
@@ -279,6 +308,86 @@ std::vector<OrderId> OrderBook::order_ids_at_price(Side side, Price price) const
 
 std::size_t OrderBook::order_count() const {
     return orders_by_id_.size();
+}
+
+bool OrderBook::can_fully_fill(const Order& order) const {
+    Quantity remaining = order.quantity;
+
+    if (order.side == Side::Buy) {
+        for (const auto& [price, level] : asks_) {
+            if (price > order.price) {
+                break;
+            }
+
+            for (const OrderId order_id : level.fifo_order_ids) {
+                const auto resting = orders_by_id_.find(order_id);
+                remaining -= std::min(remaining, resting->second.order.quantity);
+                if (remaining == 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    for (const auto& [price, level] : bids_) {
+        if (price < order.price) {
+            break;
+        }
+
+        for (const OrderId order_id : level.fifo_order_ids) {
+            const auto resting = orders_by_id_.find(order_id);
+            remaining -= std::min(remaining, resting->second.order.quantity);
+            if (remaining == 0) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+TopOfBook OrderBook::top_of_book() const {
+    TopOfBook top{.bid = best_bid(), .ask = best_ask()};
+
+    if (!bids_.empty()) {
+        for (const OrderId order_id : bids_.begin()->second.fifo_order_ids) {
+            const auto resting = orders_by_id_.find(order_id);
+            top.bid_quantity += resting->second.order.quantity;
+        }
+    }
+
+    if (!asks_.empty()) {
+        for (const OrderId order_id : asks_.begin()->second.fifo_order_ids) {
+            const auto resting = orders_by_id_.find(order_id);
+            top.ask_quantity += resting->second.order.quantity;
+        }
+    }
+
+    return top;
+}
+
+void OrderBook::notify_trades(const std::vector<Trade>& trades) {
+    if (listener_ == nullptr) {
+        return;
+    }
+
+    for (const auto& trade : trades) {
+        listener_->on_trade(trade);
+    }
+}
+
+void OrderBook::notify_top_if_changed(const TopOfBook& before) {
+    if (listener_ == nullptr) {
+        return;
+    }
+
+    const TopOfBook after = top_of_book();
+    if (before.bid != after.bid || before.ask != after.ask ||
+        before.bid_quantity != after.bid_quantity || before.ask_quantity != after.ask_quantity) {
+        listener_->on_top_of_book_change(after);
+    }
 }
 
 }  // namespace flux
