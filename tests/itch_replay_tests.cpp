@@ -370,6 +370,41 @@ void test_replay_apply_all_reports_summary() {
     expect(book->order_status(100)->quantity == 40, "apply_all updates book state");
 }
 
+void test_replay_replace_order_rests_without_matching() {
+    flux::MatchingEngine engine;
+    auto& book = engine.book_for("AAPL");
+    book.add_resting_order({.id = 99, .side = flux::Side::Sell, .price = 18'0000, .quantity = 50});
+
+    flux::itch::ReplayHandler replay{engine};
+    replay.apply(
+        flux::itch::AddOrder{
+            .header = header(),
+            .order_id = 100,
+            .side = flux::Side::Buy,
+            .quantity = 50,
+            .stock = "AAPL",
+            .price = 17'0000,
+        }
+    );
+
+    const auto result = replay.apply(
+        flux::itch::OrderReplace{
+            .header = header(),
+            .original_order_id = 100,
+            .new_order_id = 101,
+            .quantity = 50,
+            .price = 19'0000,
+        }
+    );
+
+    expect(result.action == flux::itch::ReplayAction::Replaced, "replace replay returns Replaced");
+    expect(book.order_count() == 2, "replace does not trigger matching — both orders rest");
+    expect(book.order_status(99)->quantity == 50, "existing sell unchanged");
+    expect(book.order_status(101)->quantity == 50, "replacement buy rests without matching");
+    expect(book.best_bid() == std::optional<flux::Price>{19'0000}, "replacement bid rests on book");
+    expect(book.best_ask() == std::optional<flux::Price>{18'0000}, "existing ask remains on book");
+}
+
 }  // namespace
 
 int main() {
@@ -380,6 +415,7 @@ int main() {
     test_replay_cancel_reduces_quantity();
     test_replay_add_order_with_mpid_routes_to_symbol_book();
     test_replay_replace_order_updates_id_price_and_quantity();
+    test_replay_replace_order_rests_without_matching();
     test_replay_stock_directory_is_ignored();
     test_replay_delete_removes_order();
     test_replay_unknown_order_returns_unknown_order();

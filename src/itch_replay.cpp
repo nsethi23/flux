@@ -183,17 +183,21 @@ ReplayResult ReplayHandler::apply_order_replace(const OrderReplace& message) {
     }
 
     const std::string stock = symbol->second;
-    const auto replaced = book.replace_order(
-        message.original_order_id,
-        {
-            .id = message.new_order_id,
-            .side = status->side,
-            .price = message.price,
-            .quantity = message.quantity,
-        }
-    );
 
-    if (!replaced.accepted) {
+    if (!book.cancel_order(message.original_order_id)) {
+        symbol_by_order_id_.erase(symbol);
+        return {.action = ReplayAction::UnknownOrder};
+    }
+
+    const auto result = book.add_resting_order({
+        .id = message.new_order_id,
+        .side = status->side,
+        .price = message.price,
+        .quantity = message.quantity,
+    });
+
+    if (!result.accepted) {
+        symbol_by_order_id_.erase(symbol);
         return {.action = ReplayAction::Rejected};
     }
 
