@@ -7,7 +7,7 @@
 
 class OrderBook {
 public:
-    void add_order(const Order& order);
+    void add_order(Order order);
     void cancel_order(uint64_t order_id, uint64_t quantity);
     void execute_order(uint64_t order_id, uint64_t quantity);
 
