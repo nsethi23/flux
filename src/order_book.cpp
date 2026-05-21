@@ -152,3 +152,31 @@ void OrderBook::execute_order(uint64_t order_id, uint64_t quantity)
         }
     }
 }
+
+int64_t OrderBook::best_bid() const {
+    if (bids.empty()) {
+        return -1;
+    }
+    return bids.begin()->first;
+}
+
+int64_t OrderBook::best_ask() const {
+    if (asks.empty()) {
+        return -1;
+    }
+    return asks.begin()->first;
+}
+
+uint64_t OrderBook::best_bid_quantity() const {
+    if (bids.empty()) {
+        return 0;
+    }
+    return bids.begin()->second.total_quantity;
+}
+
+uint64_t OrderBook::best_ask_quantity() const {
+    if (asks.empty()) {
+        return 0;
+    }
+    return asks.begin()->second.total_quantity;
+}
