@@ -2,18 +2,27 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <time.h>
 #include "order_book.h"
 
-static inline uint64_t rdtsc() {
+#ifdef __aarch64__
+// Mac ARM
+static inline uint64_t now_ns() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1'000'000'000ULL + ts.tv_nsec;
+}
+static double to_ns(uint64_t t) { return (double)t; }
+
+#else
+// Linux x86
+static inline uint64_t now_ns() {
     uint32_t lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
     return ((uint64_t)hi << 32) | lo;
 }
-
-static double cycles_to_ns(uint64_t cycles) {
-    // Codespaces Intel CPU ~2.8 GHz
-    return (double)cycles / 2.8;
-}
+static double to_ns(uint64_t cycles) { return (double)cycles / 2.8; }
+#endif
 
 int main() {
     const int NUM_SAMPLES = 1'000'000;
@@ -31,18 +40,18 @@ int main() {
         o.side = (i % 2 == 0) ? Side::BID : Side::ASK;
         o.timestamp = 0;
 
-        uint64_t start = rdtsc();
+        uint64_t start = now_ns();
         book.add_order(o);
-        uint64_t end = rdtsc();
+        uint64_t end = now_ns();
 
         samples.push_back(end - start);
     }
 
     std::sort(samples.begin(), samples.end());
 
-    std::cout << "p50:  " << cycles_to_ns(samples[NUM_SAMPLES * 0.50]) << " ns\n";
-    std::cout << "p99:  " << cycles_to_ns(samples[NUM_SAMPLES * 0.99]) << " ns\n";
-    std::cout << "p999: " << cycles_to_ns(samples[NUM_SAMPLES * 0.999]) << " ns\n";
+    std::cout << "p50:  " << to_ns(samples[NUM_SAMPLES * 0.50]) << " ns\n";
+    std::cout << "p99:  " << to_ns(samples[NUM_SAMPLES * 0.99]) << " ns\n";
+    std::cout << "p999: " << to_ns(samples[NUM_SAMPLES * 0.999]) << " ns\n";
 
     return 0;
 }

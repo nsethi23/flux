@@ -22,3 +22,6 @@ target_link_libraries(flux_bench benchmark::benchmark)
 
 add_executable(flux_latency benchmarks/latency.cpp src/order_book.cpp)
 target_include_directories(flux_latency PRIVATE include)
+
+add_executable(flux_parser src/main_parser.cpp src/itch_parser.cpp src/order_book.cpp)
+target_include_directories(flux_parser PRIVATE include)

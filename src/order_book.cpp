@@ -75,7 +75,7 @@ void OrderBook::cancel_order(uint64_t order_id, uint64_t quantity)
             {
                 it->quantity -= quantity;
                 level.total_quantity -= quantity;
-                if (it->quantity == 0)
+                if (quantity == UINT64_MAX || it->quantity == 0)
                 {
                     level.orders.erase(it);
                 }
@@ -119,7 +119,7 @@ void OrderBook::execute_order(uint64_t order_id, uint64_t quantity)
             {
                 it->quantity -= quantity;
                 level.total_quantity -= quantity;
-                if (it->quantity == 0)
+                if (quantity == UINT64_MAX || it->quantity == 0)
                 {
                     level.orders.erase(it);
                 }
