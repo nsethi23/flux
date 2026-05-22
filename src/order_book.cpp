@@ -1,6 +1,11 @@
 #include "order_book.h"
 #include <algorithm>
 
+OrderBook::OrderBook() {
+    order_map_.set_empty_key(UINT64_MAX);
+    order_map_.set_deleted_key(UINT64_MAX - 1);
+}
+
 void OrderBook::add_order(Order order) {
     if (order.side == Side::BID) {
         while (order.quantity > 0 && !asks.empty()) {

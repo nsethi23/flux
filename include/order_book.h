@@ -2,7 +2,7 @@
 
 #include <map>
 #include <cstdint>
-#include <unordered_map>
+#include <sparsehash/dense_hash_map>
 #include "order.h"
 #include "price_level.h"
 #include "pool_allocator.h"
@@ -21,11 +21,12 @@ public:
     int64_t best_ask() const;
     uint64_t best_bid_quantity() const;
     uint64_t best_ask_quantity() const;
+    OrderBook();
 
 private:
     std::map<int64_t, PriceLevel, std::greater<int64_t>> bids;
     std::map<int64_t, PriceLevel> asks;
-    std::unordered_map<uint64_t, OrderLocation> order_map_;
+    google::dense_hash_map<uint64_t, OrderLocation> order_map_;
     static constexpr size_t MAX_ORDERS = 1'000'000;
     PoolAllocator<Order, MAX_ORDERS> pool_;
 };
