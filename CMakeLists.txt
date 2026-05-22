@@ -25,3 +25,8 @@ target_include_directories(flux_latency PRIVATE include)
 
 add_executable(flux_parser src/main_parser.cpp src/itch_parser.cpp src/order_book.cpp)
 target_include_directories(flux_parser PRIVATE include)
+
+include_directories(/opt/homebrew/include)
+
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
