@@ -2,10 +2,9 @@
 
 #include <map>
 #include <cstdint>
-#include <unordered_map>
 #include "order.h"
 #include "price_level.h"
-#include "pool_allocator.h"
+#include <unordered_map>
 
 struct OrderLocation {
     Side side;
@@ -26,6 +25,4 @@ private:
     std::map<int64_t, PriceLevel, std::greater<int64_t>> bids;
     std::map<int64_t, PriceLevel> asks;
     std::unordered_map<uint64_t, OrderLocation> order_map_;
-    static constexpr size_t MAX_ORDERS = 1'000'000;
-    PoolAllocator<Order, MAX_ORDERS> pool_;
 };
