@@ -49,6 +49,7 @@ void OrderBook::add_order(Order order)
                 it = bids.find(order.price);
             }
             it->second.orders.push_back(order);
+            order_map_[order.order_id] = {order.side, order.price};
             it->second.total_quantity += order.quantity;
         }
         else
@@ -60,48 +61,50 @@ void OrderBook::add_order(Order order)
                 it = asks.find(order.price);
             }
             it->second.orders.push_back(order);
+            order_map_[order.order_id] = {order.side, order.price};
             it->second.total_quantity += order.quantity;
         }
     }
 }
 
-void OrderBook::cancel_order(uint64_t order_id, uint64_t quantity)
-{
-    for (auto &[price, level] : bids)
-    {
-        for (auto it = level.orders.begin(); it != level.orders.end(); ++it)
-        {
-            if (it->order_id == order_id)
-            {
-                it->quantity -= quantity;
-                level.total_quantity -= quantity;
-                if (quantity == UINT64_MAX || it->quantity == 0)
-                {
+void OrderBook::cancel_order(uint64_t order_id, uint64_t quantity) {
+    auto map_it = order_map_.find(order_id);
+    if (map_it == order_map_.end()) return;
+
+    OrderLocation loc = map_it->second;
+
+    if (loc.side == Side::BID) {
+        auto level_it = bids.find(loc.price);
+        if (level_it == bids.end()) return;
+        PriceLevel& level = level_it->second;
+        for (auto it = level.orders.begin(); it != level.orders.end(); ++it) {
+            if (it->order_id == order_id) {
+                if (quantity == UINT64_MAX || quantity >= it->quantity) {
+                    level.total_quantity -= it->quantity;
                     level.orders.erase(it);
-                }
-                if (level.orders.empty())
-                {
-                    bids.erase(price);
+                    if (level.orders.empty()) bids.erase(level_it);
+                    order_map_.erase(map_it);
+                } else {
+                    it->quantity -= quantity;
+                    level.total_quantity -= quantity;
                 }
                 return;
             }
         }
-    }
-    for (auto &[price, level] : asks)
-    {
-        for (auto it = level.orders.begin(); it != level.orders.end(); ++it)
-        {
-            if (it->order_id == order_id)
-            {
-                it->quantity -= quantity;
-                level.total_quantity -= quantity;
-                if (it->quantity == 0)
-                {
+    } else {
+        auto level_it = asks.find(loc.price);
+        if (level_it == asks.end()) return;
+        PriceLevel& level = level_it->second;
+        for (auto it = level.orders.begin(); it != level.orders.end(); ++it) {
+            if (it->order_id == order_id) {
+                if (quantity == UINT64_MAX || quantity >= it->quantity) {
+                    level.total_quantity -= it->quantity;
                     level.orders.erase(it);
-                }
-                if (level.orders.empty())
-                {
-                    asks.erase(price);
+                    if (level.orders.empty()) asks.erase(level_it);
+                    order_map_.erase(map_it);
+                } else {
+                    it->quantity -= quantity;
+                    level.total_quantity -= quantity;
                 }
                 return;
             }
@@ -109,43 +112,44 @@ void OrderBook::cancel_order(uint64_t order_id, uint64_t quantity)
     }
 }
 
-void OrderBook::execute_order(uint64_t order_id, uint64_t quantity)
-{
-    for (auto &[price, level] : bids)
-    {
-        for (auto it = level.orders.begin(); it != level.orders.end(); ++it)
-        {
-            if (it->order_id == order_id)
-            {
-                it->quantity -= quantity;
-                level.total_quantity -= quantity;
-                if (quantity == UINT64_MAX || it->quantity == 0)
-                {
+void OrderBook::execute_order(uint64_t order_id, uint64_t quantity) {
+    auto map_it = order_map_.find(order_id);
+    if (map_it == order_map_.end()) return;
+
+    OrderLocation loc = map_it->second;
+
+    if (loc.side == Side::BID) {
+        auto level_it = bids.find(loc.price);
+        if (level_it == bids.end()) return;
+        PriceLevel& level = level_it->second;
+        for (auto it = level.orders.begin(); it != level.orders.end(); ++it) {
+            if (it->order_id == order_id) {
+                if (quantity >= it->quantity) {
+                    level.total_quantity -= it->quantity;
                     level.orders.erase(it);
-                }
-                if (level.orders.empty())
-                {
-                    bids.erase(price);
+                    if (level.orders.empty()) bids.erase(level_it);
+                    order_map_.erase(map_it);
+                } else {
+                    it->quantity -= quantity;
+                    level.total_quantity -= quantity;
                 }
                 return;
             }
         }
-    }
-    for (auto &[price, level] : asks)
-    {
-        for (auto it = level.orders.begin(); it != level.orders.end(); ++it)
-        {
-            if (it->order_id == order_id)
-            {
-                it->quantity -= quantity;
-                level.total_quantity -= quantity;
-                if (it->quantity == 0)
-                {
+    } else {
+        auto level_it = asks.find(loc.price);
+        if (level_it == asks.end()) return;
+        PriceLevel& level = level_it->second;
+        for (auto it = level.orders.begin(); it != level.orders.end(); ++it) {
+            if (it->order_id == order_id) {
+                if (quantity >= it->quantity) {
+                    level.total_quantity -= it->quantity;
                     level.orders.erase(it);
-                }
-                if (level.orders.empty())
-                {
-                    asks.erase(price);
+                    if (level.orders.empty()) asks.erase(level_it);
+                    order_map_.erase(map_it);
+                } else {
+                    it->quantity -= quantity;
+                    level.total_quantity -= quantity;
                 }
                 return;
             }

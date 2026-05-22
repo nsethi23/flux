@@ -4,6 +4,12 @@
 #include <cstdint>
 #include "order.h"
 #include "price_level.h"
+#include <unordered_map>
+
+struct OrderLocation {
+    Side side;
+    int64_t price;
+};
 
 class OrderBook {
 public:
@@ -18,4 +24,5 @@ public:
 private:
     std::map<int64_t, PriceLevel, std::greater<int64_t>> bids;
     std::map<int64_t, PriceLevel> asks;
+    std::unordered_map<uint64_t, OrderLocation> order_map_;
 };
