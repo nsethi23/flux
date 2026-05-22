@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(Flux VERSION 0.1.0 LANGUAGES CXX)
 
+set(CMAKE_PREFIX_PATH "$ENV{HOME}/local")
+include_directories($ENV{HOME}/local/include)
+link_directories($ENV{HOME}/local/lib)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
