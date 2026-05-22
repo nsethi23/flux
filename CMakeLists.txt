@@ -19,3 +19,6 @@ find_package(benchmark REQUIRED)
 add_executable(flux_bench benchmarks/bench_order_book.cpp src/order_book.cpp)
 target_include_directories(flux_bench PRIVATE include)
 target_link_libraries(flux_bench benchmark::benchmark)
+
+add_executable(flux_latency benchmarks/latency.cpp src/order_book.cpp)
+target_include_directories(flux_latency PRIVATE include)
