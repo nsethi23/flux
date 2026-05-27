@@ -13,8 +13,11 @@ static inline uint64_t rdtsc() {
     return ((uint64_t)hi << 32) | lo;
 }
 
+// GT server (Intel Xeon Gold 6154) base frequency
+static constexpr double CPU_GHZ = 2.8;
+
 static double cycles_to_ns(uint64_t cycles) {
-    return (double)cycles / 2.8;
+    return (double)cycles / CPU_GHZ;
 }
 
 int main(int argc, char* argv[]) {
@@ -34,7 +37,7 @@ int main(int argc, char* argv[]) {
     samples.reserve(MAX_SAMPLES);
 
     OrderBook book;
-    char buf[64];
+    char buf[128];
 
     while (file && (int)samples.size() < MAX_SAMPLES) {
         uint16_t msg_len = 0;

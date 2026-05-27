@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 project(Flux VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_PREFIX_PATH "$ENV{HOME}/local")
@@ -30,7 +35,13 @@ target_include_directories(flux_latency PRIVATE include)
 add_executable(flux_parser src/main_parser.cpp src/itch_parser.cpp src/order_book.cpp)
 target_include_directories(flux_parser PRIVATE include)
 
-include_directories(/opt/homebrew/include)
+if(APPLE)
+    include_directories(/opt/homebrew/include)
+endif()
 
-set(CMAKE_BUILD_TYPE Release)
+find_path(SPARSEHASH_INCLUDE_DIR sparsehash/dense_hash_map)
+if(NOT SPARSEHASH_INCLUDE_DIR)
+    message(FATAL_ERROR "sparsehash not found. Install with: brew install google-sparsehash (Mac) or apt install libsparsehash-dev (Linux)")
+endif()
+
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
