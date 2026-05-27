@@ -12,7 +12,7 @@ void ITCHParser::parse_file(const std::string& filename) {
         return;
     }
 
-    char buf[64];
+    char buf[128];
     uint64_t msg_count = 0;
 
     while (file) {
