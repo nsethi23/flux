@@ -7,6 +7,7 @@
 #include "order_book.h"
 #include "itch_messages.h"
 
+#if defined(__x86_64__) || defined(_M_X64)
 static inline uint64_t rdtsc() {
     uint32_t lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
@@ -19,6 +20,19 @@ static constexpr double CPU_GHZ = 2.8;
 static double cycles_to_ns(uint64_t cycles) {
     return (double)cycles / CPU_GHZ;
 }
+#else
+// Non-x86 hosts (e.g. Apple Silicon) have no rdtsc; fall back to a
+// monotonic clock so the benchmark still builds and runs everywhere.
+#include <chrono>
+
+static inline uint64_t rdtsc() {
+    return std::chrono::steady_clock::now().time_since_epoch().count();
+}
+
+static double cycles_to_ns(uint64_t cycles) {
+    return (double)cycles;
+}
+#endif
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {

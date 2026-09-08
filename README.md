@@ -2,6 +2,8 @@
 
 A high-performance C++ limit order book and matching engine built for latency determinism. Processes real NASDAQ ITCH 5.0 market data with p50 latency of 55ns on real order flow.
 
+![build, test, and benchmark demo](docs/demo.gif)
+
 ## Performance
 
 Benchmarked on GT ECE x86 Linux server (GCC 8.5, -O3) using rdtsc nanosecond-precision timing on 1M samples from real NASDAQ ITCH 5.0 data:
@@ -114,7 +116,7 @@ make
 # Google Benchmark
 ./build/flux_bench
 
-# Synthetic latency analysis
+# p50/p99/p999 latency analysis on real ITCH data (x86_64 only, uses rdtsc)
 ./build/flux_latency <itch_file>
 
 # Parse real NASDAQ ITCH 5.0 data
@@ -122,6 +124,23 @@ make
 ```
 
 NASDAQ ITCH 5.0 sample files available at: https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/
+
+### Reproducing the benchmarks
+
+`scripts/bench.sh` builds the project, runs the unit tests, and runs the portable
+Google Benchmark suite in one command — no external data required:
+
+```bash
+./scripts/bench.sh
+```
+
+To also reproduce the p50/p99/p999 latency numbers on real order flow, pass the
+path to a downloaded ITCH file (x86_64 only — `flux_latency` uses `rdtsc` for
+cycle-accurate timing):
+
+```bash
+./scripts/bench.sh path/to.itch
+```
 
 ## References
 
