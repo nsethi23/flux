@@ -4,6 +4,10 @@ A high-performance C++ limit order book and matching engine built for latency de
 
 ![build, test, and benchmark demo](docs/demo.gif)
 
+*Demo runs the portable synthetic benchmark (`flux_bench`) on Apple Silicon — the
+~73ns shown is not the 55ns p50 below, which was measured with `flux_latency` on
+real ITCH data on an x86 Linux server. See [Reproducing the benchmarks](#reproducing-the-benchmarks).*
+
 ## Performance
 
 Benchmarked on GT ECE x86 Linux server (GCC 8.5, -O3) using rdtsc nanosecond-precision timing on 1M samples from real NASDAQ ITCH 5.0 data:
